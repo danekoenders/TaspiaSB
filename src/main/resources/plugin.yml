@@ -1,0 +1,7 @@
+name: TaspiaSB
+version: '${version}'
+main: com.taspia.taspiasb.TaspiaSB
+api-version: '1.20'
+load: STARTUP
+authors: [Dane Koenders]
+website: www.taspia.com
