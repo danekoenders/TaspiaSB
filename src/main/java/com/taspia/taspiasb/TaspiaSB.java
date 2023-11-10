@@ -1,6 +1,8 @@
 package com.taspia.taspiasb;
 
 import me.clip.placeholderapi.PlaceholderAPI;
+import com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI;
+
 import org.bukkit.Bukkit;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
@@ -25,11 +27,11 @@ public class TaspiaSB extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null && Bukkit.getPluginManager().getPlugin("SuperiorSkyblock2") != null) {
             Bukkit.getPluginManager().registerEvents(this, this);
-            getLogger().info("Registered events and hooked into PlaceholderAPI.");
+            getLogger().info("Registered events and hooked into Dependencies.");
         } else {
-            getLogger().warning("Could not find PlaceholderAPI! This plugin is required.");
+            getLogger().warning("Could not find Dependencies!");
             Bukkit.getPluginManager().disablePlugin(this);
         }
     }
@@ -38,7 +40,6 @@ public class TaspiaSB extends JavaPlugin implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         if (!player.hasPlayedBefore()) {
-            getLogger().info(player.getName() + " is a new player, starting tutorial check task after 5 seconds.");
             Bukkit.getScheduler().runTaskLater(this, () -> startTutorialCheck(player), 50L); // 5 seconds delay
         }
     }
@@ -50,7 +51,6 @@ public class TaspiaSB extends JavaPlugin implements Listener {
             @Override
             public void run() {
                 if (!player.isOnline()) {
-                    getLogger().info("Player " + player.getName() + " is no longer online, cancelling task.");
                     this.cancel();
                     return;
                 }
@@ -69,15 +69,12 @@ public class TaspiaSB extends JavaPlugin implements Listener {
                     String placeholder = "%quests_quest:" + tutorial + "_completed%";
                     String value = PlaceholderAPI.setPlaceholders(player, placeholder);
 
-                    getLogger().info("Checking " + placeholder + " for " + player.getName() + ": " + value);
-
                     if ("false".equals(value)) {
                         if (bossBar == null || !bossBar.getTitle().equals(getTutorialMessage(tutorial))) {
                             if (bossBar != null) {
                                 removeBossbar(bossBar);
                             }
                             bossBar = displayBossbar(player, getTutorialMessage(tutorial), (i + 1) / 6.0, BarColor.BLUE);
-                            getLogger().info("Displaying bossbar for " + tutorial + " to " + player.getName() + " with progress " + (i + 1) / 6.0);
                         }
                         allCompleted = false;
                         break;
@@ -89,7 +86,6 @@ public class TaspiaSB extends JavaPlugin implements Listener {
                         removeBossbar(bossBar);
                     }
                     bossBar = displayBossbar(player, finalMessage, 1.0, BarColor.YELLOW);
-                    getLogger().info("All tutorials completed for " + player.getName() + ", displaying final bossbar.");
                     Bukkit.getScheduler().runTaskLater(TaspiaSB.this, () -> removeBossbar(bossBar), 250L); // 15 seconds delay
                     this.cancel();
                 }
@@ -138,6 +134,5 @@ public class TaspiaSB extends JavaPlugin implements Listener {
     public void onDisable() {
         tasks.values().forEach(BukkitRunnable::cancel);
         tasks.clear();
-        getLogger().info("Cancelled all tutorial check tasks and cleared the task map.");
     }
 }

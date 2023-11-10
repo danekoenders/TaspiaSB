@@ -6,5 +6,4 @@ load: STARTUP
 authors: [Dane Koenders]
 website: www.taspia.com
 
-# This sets PlaceholderAPI as an optional dependency for your plugin.
-depend: [PlaceholderAPI]
+depend: [PlaceholderAPI, SuperiorSkyblock2]
