@@ -18,15 +18,11 @@ repositories {
     maven {
         url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/'
     }
-    maven {
-        url = 'https://repo.bg-software.com/repository/api/'
-    }
 }
 
 dependencies {
     compileOnly "io.papermc.paper:paper-api:1.20.2-R0.1-SNAPSHOT"
     compileOnly 'me.clip:placeholderapi:2.11.5'
-    compileOnly 'com.bgsoftware:SuperiorSkyblockAPI:2023.3'
 }
 
 def targetJavaVersion = 17

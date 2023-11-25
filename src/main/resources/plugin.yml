@@ -6,4 +6,4 @@ load: STARTUP
 authors: [Dane Koenders]
 website: www.taspia.com
 
-depend: [PlaceholderAPI, SuperiorSkyblock2]
+depend: [PlaceholderAPI]

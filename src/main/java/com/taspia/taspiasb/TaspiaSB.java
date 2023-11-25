@@ -1,7 +1,6 @@
 package com.taspia.taspiasb;
 
 import me.clip.placeholderapi.PlaceholderAPI;
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI;
 
 import org.bukkit.Bukkit;
 import org.bukkit.boss.BarColor;
@@ -27,11 +26,12 @@ public class TaspiaSB extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null && Bukkit.getPluginManager().getPlugin("SuperiorSkyblock2") != null) {
+
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             Bukkit.getPluginManager().registerEvents(this, this);
-            getLogger().info("Registered events and hooked into Dependencies.");
+            getLogger().info("Registered events and hooked into PlaceholderAPI.");
         } else {
-            getLogger().warning("Could not find Dependencies!");
+            getLogger().warning("Could not find PlaceholderAPI!");
             Bukkit.getPluginManager().disablePlugin(this);
         }
     }
@@ -129,6 +129,37 @@ public class TaspiaSB extends JavaPlugin implements Listener {
         bossBar.setVisible(false);
         bossBar.removeAll();
     }
+
+//    @EventHandler(priority = EventPriority.HIGHEST)
+//    public void onPlayerRespawn(PlayerRespawnEvent event) {
+//        Player player = event.getPlayer();
+//        World world = player.getWorld();
+//        Location respawnLocation;
+//
+//        if (world.getName().contains("shaldornkeep")) {
+//            // Set respawn location to player's last checkpoint
+//            Bukkit.getLogger().info("Respawning at last spawn location in Dungeon");
+//            return;
+//        } else if (world.getName().equals("Dryland-Zone")) {
+//            // Set respawn location to the spawnpoints of these worlds
+//            respawnLocation = world.getSpawnLocation();
+//            Bukkit.getLogger().info("Respawning at a Zone: " + respawnLocation);
+//        } else {
+//            // Using SuperiorSkyblock API
+//            com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer sPlayer = SuperiorSkyblockAPI.getPlayer(player);
+//            if (sPlayer.hasIsland()) {
+//                // Set respawn location to player's island
+//                respawnLocation = sPlayer.getIsland().getTeleportLocation(World.Environment.NORMAL);
+//                Bukkit.getLogger().info("Respawning at Island: " + respawnLocation);
+//            } else {
+//                // Set respawn location to server's spawnpoint
+//                respawnLocation = Bukkit.getWorld("world").getSpawnLocation();
+//                Bukkit.getLogger().info("Respawning at Spawn: " + respawnLocation);
+//            }
+//        }
+//
+//        event.setRespawnLocation(respawnLocation);
+//    }
 
     @Override
     public void onDisable() {
