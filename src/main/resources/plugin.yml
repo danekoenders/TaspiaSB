@@ -7,3 +7,8 @@ authors: [Dane Koenders]
 website: www.taspia.com
 
 depend: [PlaceholderAPI]
+
+commands:
+  rewards:
+    description: Open the rewards GUI
+    usage: /<command>

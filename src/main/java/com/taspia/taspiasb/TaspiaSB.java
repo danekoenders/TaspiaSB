@@ -7,6 +7,8 @@ import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.ChatColor;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -23,9 +25,16 @@ public class TaspiaSB extends JavaPlugin implements Listener {
 
     private final Map<UUID, BukkitRunnable> tasks = new HashMap<>();
     private final String finalMessage = ChatColor.translateAlternateColorCodes('&', "&eCongratulations, you received a &f&lSkeleton &espawner!");
+    private RewardsManager rewardsManager;
+    private PlayerDataManager playerDataManager;
 
     @Override
     public void onEnable() {
+        saveDefaultConfig();
+
+        // Initialize managers
+        this.rewardsManager = new RewardsManager(this);
+        this.playerDataManager = new PlayerDataManager(this);
 
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             Bukkit.getPluginManager().registerEvents(this, this);
@@ -34,6 +43,35 @@ public class TaspiaSB extends JavaPlugin implements Listener {
             getLogger().warning("Could not find PlaceholderAPI!");
             Bukkit.getPluginManager().disablePlugin(this);
         }
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("rewards")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+
+                // Use PlaceholderAPI to get the player's level
+                String levelPlaceholder = "%alonsolevels_level%";
+                String levelString = PlaceholderAPI.setPlaceholders(player, levelPlaceholder);
+                int playerLevel;
+                try {
+                    playerLevel = Integer.parseInt(levelString);
+                } catch (NumberFormatException e) {
+                    player.sendMessage("Could not determine your level.");
+                    return true;
+                }
+
+                RewardsGUI rewardsGUI = new RewardsGUI(rewardsManager, playerDataManager);
+                rewardsGUI.openGUI(player, playerLevel);
+
+                return true;
+            } else {
+                sender.sendMessage("This command can only be used by a player.");
+                return true;
+            }
+        }
+        return false;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -165,5 +203,7 @@ public class TaspiaSB extends JavaPlugin implements Listener {
     public void onDisable() {
         tasks.values().forEach(BukkitRunnable::cancel);
         tasks.clear();
+
+        playerDataManager.saveAllData();
     }
 }
