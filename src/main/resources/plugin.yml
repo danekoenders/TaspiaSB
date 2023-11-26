@@ -6,9 +6,20 @@ load: STARTUP
 authors: [Dane Koenders]
 website: www.taspia.com
 
-depend: [PlaceholderAPI]
+depend: [PlaceholderAPI, NBTAPI]
 
 commands:
   rewards:
     description: Open the rewards GUI
     usage: /<command>
+
+  taspiasb:
+    description: Reload the configuration for TaspiaSB
+    usage: /<command> reload
+    permission: taspiasb.reload
+#    aliases: [tsb]
+
+permissions:
+  taspiasb.reload:
+    description: Allows the player to reload TaspiaSB configuration.
+    default: op

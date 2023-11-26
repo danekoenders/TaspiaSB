@@ -36,6 +36,8 @@ public class TaspiaSB extends JavaPlugin implements Listener {
         this.rewardsManager = new RewardsManager(this);
         this.playerDataManager = new PlayerDataManager(this);
 
+        getServer().getPluginManager().registerEvents(new RewardsGUI(this, rewardsManager, playerDataManager), this);
+
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             Bukkit.getPluginManager().registerEvents(this, this);
             getLogger().info("Registered events and hooked into PlaceholderAPI.");
@@ -45,7 +47,6 @@ public class TaspiaSB extends JavaPlugin implements Listener {
         }
     }
 
-    @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (command.getName().equalsIgnoreCase("rewards")) {
             if (sender instanceof Player) {
@@ -62,12 +63,23 @@ public class TaspiaSB extends JavaPlugin implements Listener {
                     return true;
                 }
 
-                RewardsGUI rewardsGUI = new RewardsGUI(rewardsManager, playerDataManager);
+                RewardsGUI rewardsGUI = new RewardsGUI(this, rewardsManager, playerDataManager);
                 rewardsGUI.openGUI(player, playerLevel);
 
+                getLogger().info("Player level: " + playerLevel); // Debug message
                 return true;
             } else {
                 sender.sendMessage("This command can only be used by a player.");
+                return true;
+            }
+
+        } else if (command.getName().equalsIgnoreCase("taspiasb")) {
+            if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
+                if (sender.hasPermission("taspiasb.reload")) {
+                    reloadPlugin(sender);
+                } else {
+                    sender.sendMessage(ChatColor.RED + "You do not have permission to perform this command.");
+                }
                 return true;
             }
         }
@@ -198,6 +210,12 @@ public class TaspiaSB extends JavaPlugin implements Listener {
 //
 //        event.setRespawnLocation(respawnLocation);
 //    }
+
+    private void reloadPlugin(CommandSender sender) {
+        reloadConfig(); // Reloads the configuration file
+        rewardsManager.reloadRewards(); // Refreshes the rewards data
+        sender.sendMessage(ChatColor.GREEN + "TaspiaSB configuration reloaded.");
+    }
 
     @Override
     public void onDisable() {

@@ -32,24 +32,42 @@ public class RewardsManager {
                         String name = rewardsSection.getString(rewardKey + ".name");
                         Material material = Material.valueOf(rewardsSection.getString(rewardKey + ".material").toUpperCase());
                         String command = rewardsSection.getString(rewardKey + ".command");
-                        rewards.put(rewardKey, new Reward(name, material, command));
+                        rewards.put(rewardKey, new Reward(level, rewardKey, name, material, command));
                     }
                     rewardsByLevel.put(level, rewards);
+                    plugin.getLogger().info("Loaded rewards for level " + levelKey + ": " + rewards.toString());
                 } catch (IllegalArgumentException e) {
                     plugin.getLogger().warning("Invalid configuration in 'levels' section: " + levelKey);
                 }
             }
+        } else {
+            plugin.getLogger().warning("No 'levels' section found in config.yml");
         }
     }
 
-    public Map<String, Reward> getRewardsForLevel(int level) {
-        return rewardsByLevel.getOrDefault(level, new HashMap<>());
+    public Map<Integer, Map<String, Reward>> getRewardsUpToLevel(int level) {
+        Map<Integer, Map<String, Reward>> allRewards = new HashMap<>();
+        for (int i = 1; i <= level; i++) {
+            if (rewardsByLevel.containsKey(i)) {
+                allRewards.put(i, new HashMap<>(rewardsByLevel.get(i)));
+            }
+        }
+        return allRewards;
+    }
+
+    public Reward getReward(int level, String rewardKey) {
+        Map<String, Reward> levelRewards = rewardsByLevel.getOrDefault(level, new HashMap<>());
+        return levelRewards.get(rewardKey);
     }
 
     // Execute the command associated with a reward
     public void executeRewardCommand(Player player, String command) {
         String commandToExecute = command.replace("%player%", player.getName());
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), commandToExecute);
+    }
+
+    public void reloadRewards() {
+        loadRewards(); // Assuming loadRewards is your method to load rewards from the config
     }
 }
 
