@@ -56,11 +56,11 @@ public class RewardsGUI implements Listener {
 
         Inventory gui;
         if (hasRewards) {
-            gui = Bukkit.createInventory(new RewardsGUIHolder(), 54, ChatColor.GOLD + "REWARDS");
+            gui = Bukkit.createInventory(new RewardsGUIHolder(), 54, ChatColor.GOLD + "" + ChatColor.BOLD + "REWARDS");
             fillWithGlassPanes(gui);
             addClaimAllButton(gui);
         } else {
-            gui = Bukkit.createInventory(new RewardsGUIHolder(), 27, ChatColor.GOLD + "REWARDS");
+            gui = Bukkit.createInventory(new RewardsGUIHolder(), 27, ChatColor.GOLD + "" + ChatColor.BOLD + "REWARDS");
             addNoRewardsItem(gui);
         }
 
