@@ -1,5 +1,5 @@
 name: TaspiaSB
-version: '${version}'
+version: '1.0-SNAPSHOT'
 main: com.taspia.taspiasb.TaspiaSB
 api-version: '1.21'
 load: STARTUP
@@ -11,6 +11,9 @@ depend: [PlaceholderAPI, NBTAPI]
 commands:
   rewards:
     description: Open the rewards GUI
+    usage: /<command>
+  taspiarewards:
+    description: Open the TaspiaSB rewards GUI
     usage: /<command>
 
   taspiasb:

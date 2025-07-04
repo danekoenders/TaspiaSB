@@ -40,6 +40,9 @@ public class TaspiaSB extends JavaPlugin implements Listener {
 
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             Bukkit.getPluginManager().registerEvents(this, this);
+
+            // Register the PlaceholderAPI expansion
+            new TaspiaSBExpansion(this, rewardsManager, playerDataManager).register();
             getLogger().info("Registered events and hooked into PlaceholderAPI.");
         } else {
             getLogger().warning("Could not find PlaceholderAPI!");
@@ -66,7 +69,6 @@ public class TaspiaSB extends JavaPlugin implements Listener {
                 RewardsGUI rewardsGUI = new RewardsGUI(this, rewardsManager, playerDataManager);
                 rewardsGUI.openGUI(player, playerLevel);
 
-                getLogger().info("Player level: " + playerLevel); // Debug message
                 return true;
             } else {
                 sender.sendMessage("This command can only be used by a player.");

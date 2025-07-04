@@ -35,7 +35,6 @@ public class RewardsManager {
                         rewards.put(rewardKey, new Reward(level, rewardKey, name, material, command));
                     }
                     rewardsByLevel.put(level, rewards);
-                    plugin.getLogger().info("Loaded rewards for level " + levelKey + ": " + rewards.toString());
                 } catch (IllegalArgumentException e) {
                     plugin.getLogger().warning("Invalid configuration in 'levels' section: " + levelKey);
                 }
