@@ -9,18 +9,15 @@ website: www.taspia.com
 depend: [PlaceholderAPI, NBTAPI]
 
 commands:
-  rewards:
+  collect:
     description: Open the rewards GUI
     usage: /<command>
-  taspiarewards:
-    description: Open the TaspiaSB rewards GUI
-    usage: /<command>
+    aliases: [rewards]
 
   taspiasb:
-    description: Reload the configuration for TaspiaSB
-    usage: /<command> reload
+    description: Reload the configuration for TaspiaSB or run NPC talk command or manage boss bars
+    usage: /<command> reload | /<command> npctalk (id) | /<command> bossbar add <player> <id> <color> <message> | /<command> bossbar remove <player> <id> | /<command> bossbar list <player> | /<command> bossbar colors
     permission: taspiasb.reload
-#    aliases: [tsb]
 
 permissions:
   taspiasb.reload:

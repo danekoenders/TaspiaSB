@@ -9,17 +9,29 @@ website: www.taspia.com
 depend: [PlaceholderAPI, NBTAPI]
 
 commands:
-  rewards:
+  collect:
     description: Open the rewards GUI
     usage: /<command>
+    aliases: [rewards]
 
   taspiasb:
-    description: Reload the configuration for TaspiaSB
-    usage: /<command> reload
-    permission: taspiasb.reload
-#    aliases: [tsb]
+    description: Reload the configuration for TaspiaSB or run NPC talk command or manage boss bars
+    usage: /<command> reload | /<command> npctalk (id) | /<command> bossbar add <player> <id> <color> <message> | /<command> bossbar remove <player> <id> | /<command> bossbar list <player> | /<command> bossbar colors
+    permission: taspiasb.admin
 
 permissions:
-  taspiasb.reload:
+  taspiasb.admin:
     description: Allows the player to reload TaspiaSB configuration.
     default: op
+  taspiasb.collect:
+    description: Allows the player to use the collect/rewards command.
+    default: true
+  taspiasb.bossbar:
+    description: Allows the player to use boss bar commands.
+    default: op
+  taspiasb.npctalk.*:
+    description: Allows the player to talk to all NPCs.
+    default: op
+  taspiasb.npctalk.wizard_of_alibon:
+    description: Allows the player to talk to the Wizard of Alibon NPC.
+    default: true
