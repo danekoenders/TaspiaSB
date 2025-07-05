@@ -19,12 +19,17 @@ repositories {
         url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/'
     }
     maven { url = "https://repo.codemc.org/repository/maven-public/" }
+    maven {
+        name = "dmulloy2-repo"
+        url = "https://repo.dmulloy2.net/repository/public/"
+    }
 }
 
 dependencies {
     compileOnly "io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT"
     compileOnly 'me.clip:placeholderapi:2.11.5'
     implementation 'de.tr7zw:item-nbt-api-plugin:2.12.1'
+    compileOnly group: "com.comphenix.protocol", name: "ProtocolLib", version: "5.3.0"
 }
 
 def targetJavaVersion = 21

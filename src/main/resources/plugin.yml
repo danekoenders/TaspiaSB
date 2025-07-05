@@ -6,7 +6,7 @@ load: STARTUP
 authors: [Dane Koenders]
 website: www.taspia.com
 
-depend: [PlaceholderAPI, NBTAPI]
+depend: [PlaceholderAPI, NBTAPI, ProtocolLib]
 
 commands:
   collect:
@@ -15,8 +15,8 @@ commands:
     aliases: [rewards]
 
   taspiasb:
-    description: Reload the configuration for TaspiaSB or run NPC talk command or manage boss bars
-    usage: /<command> reload | /<command> npctalk (id) | /<command> bossbar add <player> <id> <color> <message> | /<command> bossbar remove <player> <id> | /<command> bossbar list <player> | /<command> bossbar colors
+    description: Reload the configuration for TaspiaSB or run NPC talk command or manage boss bars or manage zones or manage personal beacons
+    usage: /<command> reload | /<command> npctalk (id) | /<command> bossbar add <player> <id> <color> <message> | /<command> bossbar remove <player> <id> | /<command> bossbar list <player> | /<command> bossbar colors | /<command> zone unlock <zone_id> <player> | /<command> zone lock <zone_id> <player> | /<command> pbeacon add <player> <id> <x> <y> <z> <color> | /<command> pbeacon remove <player> <id> | /<command> pbeacon list <player> | /<command> pbeacon colors
     permission: taspiasb.admin
 
 permissions:
@@ -35,3 +35,9 @@ permissions:
   taspiasb.npctalk.wizard_of_alibon:
     description: Allows the player to talk to the Wizard of Alibon NPC.
     default: true
+  taspiasb.zone:
+    description: Allows the player to use zone commands.
+    default: op
+  taspiasb.pbeacon:
+    description: Allows the player to use personal beacon commands.
+    default: op

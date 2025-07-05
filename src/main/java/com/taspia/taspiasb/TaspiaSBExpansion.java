@@ -67,6 +67,16 @@ public class TaspiaSBExpansion extends PlaceholderExpansion {
 
             return color + message;
         }
+        
+        // Handle zone placeholders
+        if (identifier.startsWith("zones_")) {
+            String zoneId = identifier.substring(6); // Remove "zones_" prefix
+            if (playerDataManager.isValidZone(zoneId)) {
+                boolean isUnlocked = playerDataManager.isZoneUnlocked(player, zoneId);
+                return isUnlocked ? "true" : "false";
+            }
+        }
+        
         return null;
     }
 

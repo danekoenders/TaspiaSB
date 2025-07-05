@@ -9,6 +9,7 @@ public class TaspiaSB extends JavaPlugin {
     private PlayerDataManager playerDataManager;
     private TutorialManager tutorialManager;
     private CustomBossBarManager customBossBarManager;
+    private PersonalBeaconManager personalBeaconManager;
     private CommandHandler commandHandler;
 
     @Override
@@ -20,20 +21,22 @@ public class TaspiaSB extends JavaPlugin {
         this.playerDataManager = new PlayerDataManager(this);
         this.tutorialManager = new TutorialManager(this);
         this.customBossBarManager = new CustomBossBarManager();
+        this.personalBeaconManager = new PersonalBeaconManager(this);
 
         // Initialize command handler
-        this.commandHandler = new CommandHandler(this, rewardsManager, playerDataManager, customBossBarManager);
+        this.commandHandler = new CommandHandler(this, rewardsManager, playerDataManager, customBossBarManager, personalBeaconManager);
 
         // Register event listeners
         getServer().getPluginManager().registerEvents(new RewardsGUI(this, rewardsManager, playerDataManager), this);
         getServer().getPluginManager().registerEvents(tutorialManager, this);
         getServer().getPluginManager().registerEvents(customBossBarManager, this);
+        getServer().getPluginManager().registerEvents(personalBeaconManager, this);
 
         // Register command executors
         getCommand("collect").setExecutor(commandHandler);
         getCommand("taspiasb").setExecutor(commandHandler);
 
-        // Check for PlaceholderAPI
+        // Check for required dependencies
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             // Register the PlaceholderAPI expansion
             new TaspiaSBExpansion(this, rewardsManager, playerDataManager).register();
@@ -41,6 +44,13 @@ public class TaspiaSB extends JavaPlugin {
         } else {
             getLogger().warning("Could not find PlaceholderAPI!");
             Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
+            getLogger().info("Hooked into ProtocolLib for personal beacons.");
+        } else {
+            getLogger().warning("Could not find ProtocolLib! Personal beacon features will be disabled.");
         }
     }
 
@@ -52,6 +62,9 @@ public class TaspiaSB extends JavaPlugin {
         }
         if (customBossBarManager != null) {
             customBossBarManager.shutdown();
+        }
+        if (personalBeaconManager != null) {
+            personalBeaconManager.shutdown();
         }
         if (playerDataManager != null) {
             playerDataManager.saveAllData();
@@ -73,5 +86,9 @@ public class TaspiaSB extends JavaPlugin {
 
     public CustomBossBarManager getCustomBossBarManager() {
         return customBossBarManager;
+    }
+
+    public PersonalBeaconManager getPersonalBeaconManager() {
+        return personalBeaconManager;
     }
 }

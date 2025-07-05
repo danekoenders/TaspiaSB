@@ -1,5 +1,6 @@
 package com.taspia.taspiasb;
 
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -33,18 +34,30 @@ public class PlayerDataManager {
         playerDataConfig = YamlConfiguration.loadConfiguration(playerDataFile);
     }
 
+    private ConfigurationSection getPlayerSection(UUID playerId) {
+        return playerDataConfig.getConfigurationSection(playerId.toString());
+    }
+
     public boolean hasPlayerClaimedReward(Player player, Reward reward) {
         String key = generateRewardKey(reward);
-        List<String> claimedRewards = playerDataConfig.getStringList(player.getUniqueId().toString());
+        ConfigurationSection playerSection = getPlayerSection(player.getUniqueId());
+        if (playerSection == null) return false;
+        
+        List<String> claimedRewards = playerSection.getStringList("claimed-rewards");
         return claimedRewards != null && claimedRewards.contains(key);
     }
 
     public void markRewardAsClaimed(Player player, Reward reward) {
         String key = generateRewardKey(reward);
-        List<String> claimedRewards = playerDataConfig.getStringList(player.getUniqueId().toString());
+        ConfigurationSection playerSection = getPlayerSection(player.getUniqueId());
+        if (playerSection == null) {
+            playerSection = playerDataConfig.createSection(player.getUniqueId().toString());
+        }
+        
+        List<String> claimedRewards = playerSection.getStringList("claimed-rewards");
         if (!claimedRewards.contains(key)) {
             claimedRewards.add(key);
-            playerDataConfig.set(player.getUniqueId().toString(), claimedRewards);
+            playerSection.set("claimed-rewards", claimedRewards);
             savePlayerData();
         }
     }
@@ -63,6 +76,46 @@ public class PlayerDataManager {
 
     private void savePlayerData() {
         saveAllData();
+    }
+
+    private void savePlayerData(UUID playerId) {
+        saveAllData();
+    }
+
+    // Zone management methods
+    public boolean isZoneUnlocked(Player player, String zoneId) {
+        ConfigurationSection playerSection = getPlayerSection(player.getUniqueId());
+        if (playerSection == null) return false;
+        
+        ConfigurationSection zonesSection = playerSection.getConfigurationSection("unlocked-zones");
+        if (zonesSection == null) return false;
+        
+        return zonesSection.getBoolean(zoneId, false);
+    }
+
+    public void setZoneUnlocked(Player player, String zoneId, boolean unlocked) {
+        ConfigurationSection playerSection = getPlayerSection(player.getUniqueId());
+        if (playerSection == null) {
+            playerSection = playerDataConfig.createSection(player.getUniqueId().toString());
+        }
+        
+        ConfigurationSection zonesSection = playerSection.getConfigurationSection("unlocked-zones");
+        if (zonesSection == null) {
+            zonesSection = playerSection.createSection("unlocked-zones");
+        }
+        
+        zonesSection.set(zoneId, unlocked);
+        savePlayerData(player.getUniqueId());
+    }
+
+    public boolean isValidZone(String zoneId) {
+        String[] validZones = {"alibon", "airship_port", "dryland"};
+        for (String zone : validZones) {
+            if (zone.equals(zoneId)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 
