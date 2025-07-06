@@ -7,6 +7,7 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.HashMap;
@@ -92,11 +93,30 @@ public class CustomBossBarManager implements Listener {
     }
 
     @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        
+        // Restore all boss bars for this player when they rejoin
+        restoreBossBars(player);
+    }
+    
+    @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         
         // Clean up all custom boss bars when player quits
         removeAllCustomBossBars(player);
+    }
+    
+    private void restoreBossBars(Player player) {
+        Map<String, BossBar> playerBossBars = customBossBars.get(player.getUniqueId());
+        if (playerBossBars != null) {
+            for (BossBar bossBar : playerBossBars.values()) {
+                // Re-add the player to their boss bars
+                bossBar.addPlayer(player);
+                bossBar.setVisible(true);
+            }
+        }
     }
 
     public void shutdown() {

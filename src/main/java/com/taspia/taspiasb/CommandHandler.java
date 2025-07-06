@@ -4,6 +4,7 @@ import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -328,13 +329,14 @@ public class CommandHandler implements CommandExecutor {
                 return handlePersonalBeaconColors(sender);
             default:
                 sender.sendMessage(ChatColor.RED + "Usage: /taspiasb pbeacon <add|remove|list|colors> [parameters...]");
+                sender.sendMessage(ChatColor.GRAY + "Add usage: /taspiasb pbeacon add <player> <id> <world> <x> <y> <z> <color>");
                 return true;
         }
     }
 
     private boolean handlePersonalBeaconAdd(CommandSender sender, String[] args) {
-        if (args.length < 7) {
-            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb pbeacon add <player> <id> <x> <y> <z> <color>");
+        if (args.length < 8) {
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb pbeacon add <player> <id> <world> <x> <y> <z> <color>");
             sender.sendMessage(ChatColor.GRAY + "Use '/taspiasb pbeacon colors' to see available colors.");
             return true;
         }
@@ -347,27 +349,40 @@ public class CommandHandler implements CommandExecutor {
         }
 
         String id = args[3];
+        String worldName = args[4];
+        
+        // Validate world
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) {
+            sender.sendMessage(ChatColor.RED + "World '" + worldName + "' not found.");
+            return true;
+        }
         
         // Parse coordinates
         int x, y, z;
         try {
-            x = Integer.parseInt(args[4]);
-            y = Integer.parseInt(args[5]);
-            z = Integer.parseInt(args[6]);
+            x = Integer.parseInt(args[5]);
+            y = Integer.parseInt(args[6]);
+            z = Integer.parseInt(args[7]);
         } catch (NumberFormatException e) {
             sender.sendMessage(ChatColor.RED + "Invalid coordinates. Please use integers.");
             return true;
         }
 
-        String color = args[7];
-        Location location = new Location(targetPlayer.getWorld(), x, y, z);
+        String color = args[8];
+        Location location = new Location(world, x, y, z);
 
         boolean success = personalBeaconManager.addPersonalBeacon(targetPlayer, id, location, color);
         if (success) {
-            sender.sendMessage(ChatColor.GREEN + "Personal beacon '" + id + "' added for " + targetPlayer.getName() + " at " + x + ", " + y + ", " + z);
-            targetPlayer.sendMessage(ChatColor.GREEN + "A personal beacon '" + id + "' has been created for you!");
+            sender.sendMessage(ChatColor.GREEN + "Personal beacon '" + id + "' added for " + targetPlayer.getName() + " at " + worldName + ":" + x + ", " + y + ", " + z);
+            targetPlayer.sendMessage(ChatColor.GREEN + "A personal beacon '" + id + "' has been created for you in world '" + worldName + "'!");
         } else {
-            sender.sendMessage(ChatColor.RED + "Invalid color '" + color + "'. Use '/taspiasb pbeacon colors' to see available colors.");
+            // Check if it's a color issue or limit issue
+            if (personalBeaconManager.getPlayerBeacons(targetPlayer).size() >= 20) {
+                sender.sendMessage(ChatColor.RED + "Failed to add personal beacon. Player has reached the maximum limit of 20 beacons.");
+            } else {
+                sender.sendMessage(ChatColor.RED + "Invalid color '" + color + "'. Use '/taspiasb pbeacon colors' to see available colors.");
+            }
         }
         return true;
     }
@@ -416,8 +431,9 @@ public class CommandHandler implements CommandExecutor {
             sender.sendMessage(ChatColor.YELLOW + targetPlayer.getName() + " has " + playerBeacons.size() + " active personal beacon(s):");
             for (PersonalBeaconManager.PersonalBeacon beacon : playerBeacons.values()) {
                 Location loc = beacon.getLocation();
+                String worldName = loc.getWorld() != null ? loc.getWorld().getName() : "unknown";
                 sender.sendMessage(ChatColor.GRAY + "- " + ChatColor.WHITE + beacon.getId() + 
-                    ChatColor.GRAY + " at " + ChatColor.WHITE + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ() +
+                    ChatColor.GRAY + " at " + ChatColor.WHITE + worldName + ":" + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ() +
                     ChatColor.GRAY + " (" + ChatColor.WHITE + beacon.getColor().name().toLowerCase() + ChatColor.GRAY + ")");
             }
         }
