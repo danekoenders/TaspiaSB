@@ -80,11 +80,9 @@ public class PersonalBeaconManager implements Listener {
                 // Double check player is still online and in same world
                 if (player.isOnline() && player.getWorld().equals(location.getWorld())) {
                     sendFakeBeaconBlock(player, location, beaconColor);
-                    plugin.getLogger().info("Sent beacon '" + id + "' to " + player.getName() + " with " + (delayTicks * 50) + "ms delay (ping: " + player.getPing() + "ms)");
                 }
             }, delayTicks);
         } else {
-            plugin.getLogger().info("Beacon '" + id + "' added for " + player.getName() + " - will be sent when player is in range and chunk loads");
             // Start or restart monitoring to handle this new beacon
             startBeaconChunkMonitoring(player);
         }
@@ -309,7 +307,6 @@ public class PersonalBeaconManager implements Listener {
         }
         
         if (beaconsToCheck.isEmpty()) {
-            plugin.getLogger().info("No beacons found for " + player.getName() + " in world " + player.getWorld().getName());
             return; // No beacons in current world
         }
         
@@ -323,8 +320,6 @@ public class PersonalBeaconManager implements Listener {
         }, 20L, 20L).getTaskId(); // Start after 1 second, repeat every 1 second
         
         activeMonitoringTasks.put(playerId, taskId);
-        
-        plugin.getLogger().info("Started beacon chunk monitoring for " + player.getName() + " with " + beaconsToCheck.size() + " beacons in world " + player.getWorld().getName());
     }
     
     private void monitorBeaconChunks(Player player) {
@@ -384,7 +379,6 @@ public class PersonalBeaconManager implements Listener {
                     // Double check player is still online and in same world
                     if (player.isOnline() && player.getWorld().equals(beaconLoc.getWorld())) {
                         sendFakeBeaconBlock(player, beaconLoc, beacon.getColor());
-                        plugin.getLogger().info("Monitoring: Sent beacon '" + beaconId + "' to " + player.getName() + " with " + (delayTicks * 50) + "ms delay (ping: " + player.getPing() + "ms, distance: " + Math.round(distance) + " blocks)");
                     }
                 }, delayTicks);
                 
@@ -398,7 +392,6 @@ public class PersonalBeaconManager implements Listener {
         // If all beacons are processed, stop monitoring
         if (pendingBeacons.isEmpty()) {
             stopBeaconChunkMonitoring(playerId);
-            plugin.getLogger().info("Completed beacon chunk monitoring for " + player.getName());
         }
     }
     
