@@ -294,7 +294,6 @@ public class CommandHandler implements CommandExecutor {
 
         playerDataManager.setZoneUnlocked(targetPlayer, zoneId, true);
         sender.sendMessage(ChatColor.GREEN + "Zone '" + zoneId + "' has been unlocked for " + targetPlayer.getName());
-        targetPlayer.sendMessage(ChatColor.GREEN + "You have unlocked the zone: " + ChatColor.YELLOW + zoneId);
         return true;
     }
 
@@ -306,7 +305,6 @@ public class CommandHandler implements CommandExecutor {
 
         playerDataManager.setZoneUnlocked(targetPlayer, zoneId, false);
         sender.sendMessage(ChatColor.GREEN + "Zone '" + zoneId + "' has been locked for " + targetPlayer.getName());
-        targetPlayer.sendMessage(ChatColor.RED + "You have lost access to the zone: " + ChatColor.YELLOW + zoneId);
         return true;
     }
 
@@ -379,7 +377,6 @@ public class CommandHandler implements CommandExecutor {
         boolean success = personalBeaconManager.addPersonalBeacon(targetPlayer, id, location, color);
         if (success) {
             sender.sendMessage(ChatColor.GREEN + "Personal beacon '" + id + "' added for " + targetPlayer.getName() + " at " + worldName + ":" + x + ", " + y + ", " + z);
-            targetPlayer.sendMessage(ChatColor.GREEN + "A personal beacon '" + id + "' has been created for you in world '" + worldName + "'!");
         } else {
             // Check if it's a color issue or limit issue
             if (personalBeaconManager.getPlayerBeacons(targetPlayer).size() >= 20) {
@@ -408,7 +405,6 @@ public class CommandHandler implements CommandExecutor {
         boolean success = personalBeaconManager.removePersonalBeacon(targetPlayer, id);
         if (success) {
             sender.sendMessage(ChatColor.GREEN + "Personal beacon '" + id + "' removed for " + targetPlayer.getName());
-            targetPlayer.sendMessage(ChatColor.YELLOW + "Your personal beacon '" + id + "' has been removed.");
         } else {
             sender.sendMessage(ChatColor.RED + "Personal beacon '" + id + "' not found for " + targetPlayer.getName());
         }
@@ -508,11 +504,10 @@ public class CommandHandler implements CommandExecutor {
 
         Location location = new Location(world, x, y, z);
 
-        boolean success = personalLightningManager.spawnPersonalLightning(targetPlayer, location, playSound);
+        boolean success = personalLightningManager.spawnPersonalLightning(targetPlayer, location);
         if (success) {
             sender.sendMessage(ChatColor.GREEN + "Personal lightning spawned for " + targetPlayer.getName() + 
-                " at " + worldName + ":" + x + ", " + y + ", " + z + " (sound: " + playSound + ")");
-            targetPlayer.sendMessage(ChatColor.GOLD + "⚡ " + ChatColor.YELLOW + "Personal lightning has been spawned for you!");
+                " at " + worldName + ":" + x + ", " + y + ", " + z);
         } else {
             sender.sendMessage(ChatColor.RED + "Failed to spawn personal lightning. Please check the console for errors.");
         }
