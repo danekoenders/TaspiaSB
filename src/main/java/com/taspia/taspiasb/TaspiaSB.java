@@ -10,6 +10,7 @@ public class TaspiaSB extends JavaPlugin {
     private TutorialManager tutorialManager;
     private CustomBossBarManager customBossBarManager;
     private PersonalBeaconManager personalBeaconManager;
+    private PersonalLightningManager personalLightningManager;
     private CommandHandler commandHandler;
 
     @Override
@@ -22,9 +23,10 @@ public class TaspiaSB extends JavaPlugin {
         this.tutorialManager = new TutorialManager(this);
         this.customBossBarManager = new CustomBossBarManager();
         this.personalBeaconManager = new PersonalBeaconManager(this);
+        this.personalLightningManager = new PersonalLightningManager(this);
 
         // Initialize command handler
-        this.commandHandler = new CommandHandler(this, rewardsManager, playerDataManager, customBossBarManager, personalBeaconManager);
+        this.commandHandler = new CommandHandler(this, rewardsManager, playerDataManager, customBossBarManager, personalBeaconManager, personalLightningManager);
 
         // Register event listeners
         getServer().getPluginManager().registerEvents(new RewardsGUI(this, rewardsManager, playerDataManager), this);
@@ -48,9 +50,9 @@ public class TaspiaSB extends JavaPlugin {
         }
 
         if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
-            getLogger().info("Hooked into ProtocolLib for personal beacons.");
+            getLogger().info("Hooked into ProtocolLib for personal beacons and lightning.");
         } else {
-            getLogger().warning("Could not find ProtocolLib! Personal beacon features will be disabled.");
+            getLogger().warning("Could not find ProtocolLib! Personal beacon and lightning features will be disabled.");
         }
     }
 
@@ -90,5 +92,9 @@ public class TaspiaSB extends JavaPlugin {
 
     public PersonalBeaconManager getPersonalBeaconManager() {
         return personalBeaconManager;
+    }
+
+    public PersonalLightningManager getPersonalLightningManager() {
+        return personalLightningManager;
     }
 }
