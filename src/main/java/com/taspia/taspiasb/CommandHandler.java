@@ -153,12 +153,15 @@ public class CommandHandler implements CommandExecutor {
 
     private boolean handleBossBarAdd(CommandSender sender, String[] args) {
         if (args.length < 6) {
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb bossbar add <player> <id> <color> <message>");
+            sender.sendMessage(ChatColor.GRAY + "Use '/taspiasb bossbar colors' to see available colors.");
             return true;
         }
 
         String targetPlayerName = args[2];
         Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
         if (targetPlayer == null) {
+            sender.sendMessage(ChatColor.RED + "Player " + targetPlayerName + " not found.");
             return true;
         }
 
@@ -175,31 +178,66 @@ public class CommandHandler implements CommandExecutor {
         }
         String message = ChatColor.translateAlternateColorCodes('&', messageBuilder.toString());
 
-        customBossBarManager.addCustomBossBar(targetPlayer, id, message, color);
+        boolean success = customBossBarManager.addCustomBossBar(targetPlayer, id, message, color);
+        if (success) {
+            sender.sendMessage(ChatColor.GREEN + "Boss bar '" + id + "' added for " + targetPlayer.getName());
+        } else {
+            sender.sendMessage(ChatColor.RED + "Invalid color '" + color + "'. Use '/taspiasb bossbar colors' to see available colors.");
+        }
         return true;
     }
 
     private boolean handleBossBarRemove(CommandSender sender, String[] args) {
         if (args.length < 4) {
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb bossbar remove <player> <id>");
             return true;
         }
 
         String targetPlayerName = args[2];
         Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
         if (targetPlayer == null) {
+            sender.sendMessage(ChatColor.RED + "Player " + targetPlayerName + " not found.");
             return true;
         }
 
         String id = args[3];
-        customBossBarManager.removeCustomBossBar(targetPlayer, id);
+        boolean success = customBossBarManager.removeCustomBossBar(targetPlayer, id);
+        if (success) {
+            sender.sendMessage(ChatColor.GREEN + "Boss bar '" + id + "' removed for " + targetPlayer.getName());
+        } else {
+            sender.sendMessage(ChatColor.RED + "Boss bar '" + id + "' not found for " + targetPlayer.getName());
+        }
         return true;
     }
 
     private boolean handleBossBarColors(CommandSender sender) {
+        String availableColors = customBossBarManager.getAvailableColors();
+        sender.sendMessage(ChatColor.YELLOW + "Available boss bar colors: " + ChatColor.WHITE + availableColors);
         return true;
     }
 
     private boolean handleBossBarList(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb bossbar list <player>");
+            return true;
+        }
+
+        String targetPlayerName = args[2];
+        Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
+        if (targetPlayer == null) {
+            sender.sendMessage(ChatColor.RED + "Player " + targetPlayerName + " not found.");
+            return true;
+        }
+
+        var playerBossBars = customBossBarManager.getPlayerBossBars(targetPlayer);
+        if (playerBossBars.isEmpty()) {
+            sender.sendMessage(ChatColor.YELLOW + targetPlayer.getName() + " has no active boss bars.");
+        } else {
+            sender.sendMessage(ChatColor.YELLOW + targetPlayer.getName() + " has " + playerBossBars.size() + " active boss bar(s):");
+            for (String id : playerBossBars.keySet()) {
+                sender.sendMessage(ChatColor.GRAY + "- " + ChatColor.WHITE + id);
+            }
+        }
         return true;
     }
 
@@ -302,12 +340,15 @@ public class CommandHandler implements CommandExecutor {
 
     private boolean handlePersonalBeaconAdd(CommandSender sender, String[] args) {
         if (args.length < 8) {
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb pbeacon add <player> <id> <world> <x> <y> <z> <color>");
+            sender.sendMessage(ChatColor.GRAY + "Use '/taspiasb pbeacon colors' to see available colors.");
             return true;
         }
 
         String targetPlayerName = args[2];
         Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
         if (targetPlayer == null) {
+            sender.sendMessage(ChatColor.RED + "Player " + targetPlayerName + " not found.");
             return true;
         }
 
@@ -317,6 +358,7 @@ public class CommandHandler implements CommandExecutor {
         // Validate world
         World world = Bukkit.getWorld(worldName);
         if (world == null) {
+            sender.sendMessage(ChatColor.RED + "World '" + worldName + "' not found.");
             return true;
         }
         
@@ -327,43 +369,91 @@ public class CommandHandler implements CommandExecutor {
             y = Integer.parseInt(args[6]);
             z = Integer.parseInt(args[7]);
         } catch (NumberFormatException e) {
+            sender.sendMessage(ChatColor.RED + "Invalid coordinates. Please use integers.");
             return true;
         }
 
         String color = args[8];
         Location location = new Location(world, x, y, z);
 
-        personalBeaconManager.addPersonalBeacon(targetPlayer, id, location, color);
+        boolean success = personalBeaconManager.addPersonalBeacon(targetPlayer, id, location, color);
+        if (success) {
+            sender.sendMessage(ChatColor.GREEN + "Personal beacon '" + id + "' added for " + targetPlayer.getName() + " at " + worldName + ":" + x + ", " + y + ", " + z);
+            targetPlayer.sendMessage(ChatColor.GREEN + "A personal beacon '" + id + "' has been created for you in world '" + worldName + "'!");
+        } else {
+            // Check if it's a color issue or limit issue
+            if (personalBeaconManager.getPlayerBeacons(targetPlayer).size() >= 20) {
+                sender.sendMessage(ChatColor.RED + "Failed to add personal beacon. Player has reached the maximum limit of 20 beacons.");
+            } else {
+                sender.sendMessage(ChatColor.RED + "Invalid color '" + color + "'. Use '/taspiasb pbeacon colors' to see available colors.");
+            }
+        }
         return true;
     }
 
     private boolean handlePersonalBeaconRemove(CommandSender sender, String[] args) {
         if (args.length < 4) {
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb pbeacon remove <player> <id>");
             return true;
         }
 
         String targetPlayerName = args[2];
         Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
         if (targetPlayer == null) {
+            sender.sendMessage(ChatColor.RED + "Player " + targetPlayerName + " not found.");
             return true;
         }
 
         String id = args[3];
-        personalBeaconManager.removePersonalBeacon(targetPlayer, id);
+        boolean success = personalBeaconManager.removePersonalBeacon(targetPlayer, id);
+        if (success) {
+            sender.sendMessage(ChatColor.GREEN + "Personal beacon '" + id + "' removed for " + targetPlayer.getName());
+            targetPlayer.sendMessage(ChatColor.YELLOW + "Your personal beacon '" + id + "' has been removed.");
+        } else {
+            sender.sendMessage(ChatColor.RED + "Personal beacon '" + id + "' not found for " + targetPlayer.getName());
+        }
         return true;
     }
 
     private boolean handlePersonalBeaconList(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb pbeacon list <player>");
+            return true;
+        }
+
+        String targetPlayerName = args[2];
+        Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
+        if (targetPlayer == null) {
+            sender.sendMessage(ChatColor.RED + "Player " + targetPlayerName + " not found.");
+            return true;
+        }
+
+        var playerBeacons = personalBeaconManager.getPlayerBeacons(targetPlayer);
+        if (playerBeacons.isEmpty()) {
+            sender.sendMessage(ChatColor.YELLOW + targetPlayer.getName() + " has no active personal beacons.");
+        } else {
+            sender.sendMessage(ChatColor.YELLOW + targetPlayer.getName() + " has " + playerBeacons.size() + " active personal beacon(s):");
+            for (PersonalBeaconManager.PersonalBeacon beacon : playerBeacons.values()) {
+                Location loc = beacon.getLocation();
+                String worldName = loc.getWorld() != null ? loc.getWorld().getName() : "unknown";
+                sender.sendMessage(ChatColor.GRAY + "- " + ChatColor.WHITE + beacon.getId() + 
+                    ChatColor.GRAY + " at " + ChatColor.WHITE + worldName + ":" + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ() +
+                    ChatColor.GRAY + " (" + ChatColor.WHITE + beacon.getColor().name().toLowerCase() + ChatColor.GRAY + ")");
+            }
+        }
         return true;
     }
 
     private boolean handlePersonalBeaconColors(CommandSender sender) {
+        String availableColors = personalBeaconManager.getAvailableColors();
+        sender.sendMessage(ChatColor.YELLOW + "Available personal beacon colors: " + ChatColor.WHITE + availableColors);
         return true;
     }
 
     private boolean handlePersonalLightningCommand(CommandSender sender, String[] args) {
-        if (args.length < 6) {
-            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb plightning <player> <world> <x> <y> <z>");
+        if (args.length < 7) {
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb plightning <player> <world> <x> <y> <z> <sound>");
+            sender.sendMessage(ChatColor.GRAY + "Sound: true/false");
             return true;
         }
 
@@ -380,6 +470,7 @@ public class CommandHandler implements CommandExecutor {
         String targetPlayerName = args[1];
         Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
         if (targetPlayer == null) {
+            sender.sendMessage(ChatColor.RED + "Player " + targetPlayerName + " not found.");
             return true;
         }
 
@@ -388,6 +479,7 @@ public class CommandHandler implements CommandExecutor {
         // Validate world
         World world = Bukkit.getWorld(worldName);
         if (world == null) {
+            sender.sendMessage(ChatColor.RED + "World '" + worldName + "' not found.");
             return true;
         }
         
@@ -398,11 +490,32 @@ public class CommandHandler implements CommandExecutor {
             y = Double.parseDouble(args[4]);
             z = Double.parseDouble(args[5]);
         } catch (NumberFormatException e) {
+            sender.sendMessage(ChatColor.RED + "Invalid coordinates. Please use numbers.");
+            return true;
+        }
+
+        // Parse sound setting
+        boolean playSound;
+        String soundArg = args[6].toLowerCase();
+        if (soundArg.equals("true") || soundArg.equals("1") || soundArg.equals("yes")) {
+            playSound = true;
+        } else if (soundArg.equals("false") || soundArg.equals("0") || soundArg.equals("no")) {
+            playSound = false;
+        } else {
+            sender.sendMessage(ChatColor.RED + "Invalid sound setting. Use true/false, yes/no, or 1/0.");
             return true;
         }
 
         Location location = new Location(world, x, y, z);
-        personalLightningManager.spawnPersonalLightning(targetPlayer, location);
+
+        boolean success = personalLightningManager.spawnPersonalLightning(targetPlayer, location, playSound);
+        if (success) {
+            sender.sendMessage(ChatColor.GREEN + "Personal lightning spawned for " + targetPlayer.getName() + 
+                " at " + worldName + ":" + x + ", " + y + ", " + z + " (sound: " + playSound + ")");
+            targetPlayer.sendMessage(ChatColor.GOLD + "⚡ " + ChatColor.YELLOW + "Personal lightning has been spawned for you!");
+        } else {
+            sender.sendMessage(ChatColor.RED + "Failed to spawn personal lightning. Please check the console for errors.");
+        }
         return true;
     }
 
