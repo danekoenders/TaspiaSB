@@ -447,9 +447,8 @@ public class CommandHandler implements CommandExecutor {
     }
 
     private boolean handlePersonalLightningCommand(CommandSender sender, String[] args) {
-        if (args.length < 7) {
-            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb plightning <player> <world> <x> <y> <z> <sound>");
-            sender.sendMessage(ChatColor.GRAY + "Sound: true/false");
+        if (args.length < 6) {
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb plightning <player> <world> <x> <y> <z>");
             return true;
         }
 
@@ -487,18 +486,6 @@ public class CommandHandler implements CommandExecutor {
             z = Double.parseDouble(args[5]);
         } catch (NumberFormatException e) {
             sender.sendMessage(ChatColor.RED + "Invalid coordinates. Please use numbers.");
-            return true;
-        }
-
-        // Parse sound setting
-        boolean playSound;
-        String soundArg = args[6].toLowerCase();
-        if (soundArg.equals("true") || soundArg.equals("1") || soundArg.equals("yes")) {
-            playSound = true;
-        } else if (soundArg.equals("false") || soundArg.equals("0") || soundArg.equals("no")) {
-            playSound = false;
-        } else {
-            sender.sendMessage(ChatColor.RED + "Invalid sound setting. Use true/false, yes/no, or 1/0.");
             return true;
         }
 
