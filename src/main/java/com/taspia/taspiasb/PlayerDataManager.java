@@ -74,6 +74,15 @@ public class PlayerDataManager {
         }
     }
 
+    public void reloadPlayerData() {
+        // First save any current changes to avoid losing data
+        saveAllData();
+        
+        // Reload the configuration from disk
+        playerDataConfig = YamlConfiguration.loadConfiguration(playerDataFile);
+        plugin.getLogger().info("Player data reloaded from playerdata.yml");
+    }
+
     private void savePlayerData() {
         saveAllData();
     }
@@ -108,14 +117,30 @@ public class PlayerDataManager {
         savePlayerData(player.getUniqueId());
     }
 
-    public boolean isValidZone(String zoneId) {
-        String[] validZones = {"alibon", "airship_port", "dryland"};
-        for (String zone : validZones) {
-            if (zone.equals(zoneId)) {
-                return true;
-            }
+    // Cutscene management methods
+    public boolean isCutsceneCompleted(Player player, String cutsceneId) {
+        ConfigurationSection playerSection = getPlayerSection(player.getUniqueId());
+        if (playerSection == null) return false;
+        
+        ConfigurationSection cutscenesSection = playerSection.getConfigurationSection("completed-cutscenes");
+        if (cutscenesSection == null) return false;
+        
+        return cutscenesSection.getBoolean(cutsceneId, false);
+    }
+
+    public void setCutsceneCompleted(Player player, String cutsceneId, boolean completed) {
+        ConfigurationSection playerSection = getPlayerSection(player.getUniqueId());
+        if (playerSection == null) {
+            playerSection = playerDataConfig.createSection(player.getUniqueId().toString());
         }
-        return false;
+        
+        ConfigurationSection cutscenesSection = playerSection.getConfigurationSection("completed-cutscenes");
+        if (cutscenesSection == null) {
+            cutscenesSection = playerSection.createSection("completed-cutscenes");
+        }
+        
+        cutscenesSection.set(cutsceneId, completed);
+        savePlayerData(player.getUniqueId());
     }
 }
 

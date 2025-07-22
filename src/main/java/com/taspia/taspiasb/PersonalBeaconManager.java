@@ -337,8 +337,8 @@ public class PersonalBeaconManager implements Listener {
             return;
         }
         
-        // Get server view distance (chunks) - defaults to 10 if not available
-        int viewDistanceChunks = player.getWorld().getViewDistance();
+        // Get server view distance
+        int viewDistanceChunks = 10;
         int viewDistanceBlocks = viewDistanceChunks * 16; // Convert chunks to blocks
         
         // Check each pending beacon
@@ -374,7 +374,7 @@ public class PersonalBeaconManager implements Listener {
                 // Client should have this chunk - safe to send packet with distance and ping-based delay
                 long delayTicks = calculateChunkDelay(player.getLocation(), beaconLoc, player);
                 
-                // Always send with delay now (minimum 1 tick for reliability)
+                // Always send with delay now (minimum 2 ticks for reliability)
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     // Double check player is still online and in same world
                     if (player.isOnline() && player.getWorld().equals(beaconLoc.getWorld())) {
@@ -482,28 +482,22 @@ public class PersonalBeaconManager implements Listener {
         
         int chunkDistance = Math.max(Math.abs(playerChunkX - beaconChunkX), Math.abs(playerChunkZ - beaconChunkZ));
         
-        // Base delay scaling based on chunk distance (increased for more reliability):
-        // 0-1 chunks: 1-2 ticks base (50-100ms)
-        // 2-4 chunks: 3-4 ticks per chunk (150-200ms each)
-        // 5-8 chunks: 5 ticks per chunk (250ms each)  
-        // 9+ chunks: 8 ticks per chunk (400ms each)
-        
         long baseDelay;
         if (chunkDistance <= 1) {
-            baseDelay = chunkDistance + 1L; // 1-2 ticks (50-100ms)
+            baseDelay = chunkDistance + 2L; // 1-2 ticks (100ms)
         } else if (chunkDistance <= 4) {
             baseDelay = chunkDistance * 4L; // 4 ticks per chunk (200ms each)
         } else if (chunkDistance <= 8) {
-            baseDelay = chunkDistance * 5L; // 5 ticks per chunk (250ms each)
+            baseDelay = chunkDistance * 6L; // 6 ticks per chunk (300ms each)
         } else {
-            baseDelay = chunkDistance * 8L; // 8 ticks per chunk (400ms each)
+            baseDelay = chunkDistance * 10L; // 10 ticks per chunk (500ms each)
         }
         
         // Add ping-based delay (higher ping = more time needed)
         // Convert ping from ms to ticks: ping/50 (since 1 tick = 50ms)
         // Scale it down a bit so ping doesn't dominate: ping/100 ticks
         int playerPing = player.getPing();
-        long pingDelay = Math.max(0, playerPing / 100); // At least 0, ping in ms / 100 = ticks
+        long pingDelay = Math.max(0, (playerPing / 50) * 2); // At least 0, ping in ms / 100 = ticks
         
         // Total delay = base + ping component
         long totalDelay = baseDelay + pingDelay;

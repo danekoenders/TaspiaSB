@@ -7,7 +7,6 @@ public class TaspiaSB extends JavaPlugin {
 
     private RewardsManager rewardsManager;
     private PlayerDataManager playerDataManager;
-    private TutorialManager tutorialManager;
     private CustomBossBarManager customBossBarManager;
     private PersonalBeaconManager personalBeaconManager;
     private PersonalLightningManager personalLightningManager;
@@ -20,7 +19,6 @@ public class TaspiaSB extends JavaPlugin {
         // Initialize managers
         this.rewardsManager = new RewardsManager(this);
         this.playerDataManager = new PlayerDataManager(this);
-        this.tutorialManager = new TutorialManager(this);
         this.customBossBarManager = new CustomBossBarManager();
         this.personalBeaconManager = new PersonalBeaconManager(this);
         this.personalLightningManager = new PersonalLightningManager(this);
@@ -30,7 +28,6 @@ public class TaspiaSB extends JavaPlugin {
 
         // Register event listeners
         getServer().getPluginManager().registerEvents(new RewardsGUI(this, rewardsManager, playerDataManager), this);
-        getServer().getPluginManager().registerEvents(tutorialManager, this);
         getServer().getPluginManager().registerEvents(customBossBarManager, this);
         getServer().getPluginManager().registerEvents(personalBeaconManager, this);
 
@@ -59,9 +56,6 @@ public class TaspiaSB extends JavaPlugin {
     @Override
     public void onDisable() {
         // Shutdown managers
-        if (tutorialManager != null) {
-            tutorialManager.shutdown();
-        }
         if (customBossBarManager != null) {
             customBossBarManager.shutdown();
         }
@@ -80,10 +74,6 @@ public class TaspiaSB extends JavaPlugin {
 
     public PlayerDataManager getPlayerDataManager() {
         return playerDataManager;
-    }
-
-    public TutorialManager getTutorialManager() {
-        return tutorialManager;
     }
 
     public CustomBossBarManager getCustomBossBarManager() {

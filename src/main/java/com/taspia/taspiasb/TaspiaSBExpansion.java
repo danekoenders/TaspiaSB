@@ -71,10 +71,15 @@ public class TaspiaSBExpansion extends PlaceholderExpansion {
         // Handle zone placeholders
         if (identifier.startsWith("zones_")) {
             String zoneId = identifier.substring(6); // Remove "zones_" prefix
-            if (playerDataManager.isValidZone(zoneId)) {
-                boolean isUnlocked = playerDataManager.isZoneUnlocked(player, zoneId);
-                return isUnlocked ? "true" : "false";
-            }
+            boolean isUnlocked = playerDataManager.isZoneUnlocked(player, zoneId);
+            return isUnlocked ? "true" : "false";
+        }
+        
+        // Handle cutscene placeholders
+        if (identifier.startsWith("cutscenes_")) {
+            String cutsceneId = identifier.substring(10); // Remove "cutscenes_" prefix
+            boolean isCompleted = playerDataManager.isCutsceneCompleted(player, cutsceneId);
+            return isCompleted ? "true" : "false";
         }
         
         return null;

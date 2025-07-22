@@ -71,7 +71,7 @@ public class CommandHandler implements CommandExecutor {
 
     private boolean handleTaspiaSBCommand(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb <reload|npctalk|bossbar|zone|pbeacon|plightning>");
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb <reload|npctalk|bossbar|zone|cutscene|pbeacon|plightning>");
             return true;
         }
 
@@ -84,12 +84,14 @@ public class CommandHandler implements CommandExecutor {
                 return handleBossBarCommand(sender, args);
             case "zone":
                 return handleZoneCommand(sender, args);
+            case "cutscene":
+                return handleCutsceneCommand(sender, args);
             case "pbeacon":
                 return handlePersonalBeaconCommand(sender, args);
             case "plightning":
                 return handlePersonalLightningCommand(sender, args);
             default:
-                sender.sendMessage(ChatColor.RED + "Usage: /taspiasb <reload|npctalk|bossbar|zone|pbeacon|plightning>");
+                sender.sendMessage(ChatColor.RED + "Usage: /taspiasb <reload|npctalk|bossbar|zone|cutscene|pbeacon|plightning>");
                 return true;
         }
     }
@@ -102,7 +104,8 @@ public class CommandHandler implements CommandExecutor {
 
         plugin.reloadConfig();
         rewardsManager.reloadRewards();
-        sender.sendMessage(ChatColor.GREEN + "TaspiaSB configuration reloaded.");
+        playerDataManager.reloadPlayerData();
+        sender.sendMessage(ChatColor.GREEN + "TaspiaSB configuration and player data reloaded.");
         return true;
     }
 
@@ -242,9 +245,8 @@ public class CommandHandler implements CommandExecutor {
     }
 
     private boolean handleZoneCommand(CommandSender sender, String[] args) {
-        if (args.length < 3) {
+        if (args.length < 4) {
             sender.sendMessage(ChatColor.RED + "Usage: /taspiasb zone <unlock|lock> <zone_id> <player>");
-            sender.sendMessage(ChatColor.GRAY + "Available zones: alibon, airship_port, dryland");
             return true;
         }
 
@@ -256,19 +258,8 @@ public class CommandHandler implements CommandExecutor {
 
         String action = args[1].toLowerCase();
         String zoneId = args[2].toLowerCase();
-
-        if (!playerDataManager.isValidZone(zoneId)) {
-            sender.sendMessage(ChatColor.RED + "Invalid zone ID: " + zoneId);
-            sender.sendMessage(ChatColor.GRAY + "Available zones: alibon, airship_port, dryland");
-            return true;
-        }
-
-        if (args.length < 4) {
-            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb zone <unlock|lock> <zone_id> <player>");
-            return true;
-        }
-
         String targetPlayerName = args[3];
+        
         Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
         if (targetPlayer == null) {
             sender.sendMessage(ChatColor.RED + "Player " + targetPlayerName + " not found.");
@@ -305,6 +296,53 @@ public class CommandHandler implements CommandExecutor {
 
         playerDataManager.setZoneUnlocked(targetPlayer, zoneId, false);
         sender.sendMessage(ChatColor.GREEN + "Zone '" + zoneId + "' has been locked for " + targetPlayer.getName());
+        return true;
+    }
+
+    private boolean handleCutsceneCommand(CommandSender sender, String[] args) {
+        if (args.length < 4) {
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb cutscene <cutscene_id> <player> <true/false>");
+            return true;
+        }
+
+        // Check base permission for cutscene commands
+        if (!sender.hasPermission("taspiasb.cutscene")) {
+            sender.sendMessage(ChatColor.RED + "You do not have permission to use cutscene commands.");
+            return true;
+        }
+
+        String cutsceneId = args[1].toLowerCase();
+        String targetPlayerName = args[2];
+        String completionStatus = args[3].toLowerCase();
+
+        Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
+        if (targetPlayer == null) {
+            sender.sendMessage(ChatColor.RED + "Player " + targetPlayerName + " not found.");
+            return true;
+        }
+
+        if (!completionStatus.equals("true") && !completionStatus.equals("false")) {
+            sender.sendMessage(ChatColor.RED + "Completion status must be 'true' or 'false'");
+            return true;
+        }
+
+        boolean isCompleted = Boolean.parseBoolean(completionStatus);
+        return handleCutsceneSet(sender, targetPlayer, cutsceneId, isCompleted);
+    }
+
+    private boolean handleCutsceneSet(CommandSender sender, Player targetPlayer, String cutsceneId, boolean completed) {
+        boolean currentStatus = playerDataManager.isCutsceneCompleted(targetPlayer, cutsceneId);
+        
+        if (currentStatus == completed) {
+            String statusText = completed ? "completed" : "not completed";
+            sender.sendMessage(ChatColor.YELLOW + "Cutscene '" + cutsceneId + "' is already " + statusText + " for " + targetPlayer.getName());
+            return true;
+        }
+
+        playerDataManager.setCutsceneCompleted(targetPlayer, cutsceneId, completed);
+        String statusText = completed ? "completed" : "not completed";
+        String actionText = completed ? "marked as completed" : "marked as not completed";
+        sender.sendMessage(ChatColor.GREEN + "Cutscene '" + cutsceneId + "' has been " + actionText + " for " + targetPlayer.getName());
         return true;
     }
 
