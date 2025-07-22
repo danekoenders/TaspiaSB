@@ -51,4 +51,27 @@ levels:
       
   # Add more levels and rewards as needed
 
+# MySQL Database Configuration for AlonsoLevels fallback
+mysql:
+  # Enable MySQL fallback for offline players
+  enabled: true
+  
+  # Database connection details
+  host: "localhost"
+  port: 3306
+  database: "alonsolevels"
+  username: "your_username"
+  password: "your_password"
+  
+  # Table name for player levels
+  table_name: "alonsoskyblock_users"
+  
+  # Connection pool settings
+  pool:
+    maximum_pool_size: 10
+    minimum_idle: 2
+    connection_timeout: 30000
+    idle_timeout: 600000
+    max_lifetime: 1800000
+
 # You can add other plugin-wide configurations below

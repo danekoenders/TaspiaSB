@@ -11,6 +11,7 @@ public class TaspiaSB extends JavaPlugin {
     private PersonalBeaconManager personalBeaconManager;
     private PersonalLightningManager personalLightningManager;
     private IslandLevelManager islandLevelManager;
+    private DatabaseManager databaseManager;
     private CommandHandler commandHandler;
 
     @Override
@@ -23,7 +24,12 @@ public class TaspiaSB extends JavaPlugin {
         this.customBossBarManager = new CustomBossBarManager();
         this.personalBeaconManager = new PersonalBeaconManager(this);
         this.personalLightningManager = new PersonalLightningManager(this);
-        this.islandLevelManager = new IslandLevelManager(this);
+        
+        // Initialize database manager before island level manager
+        this.databaseManager = new DatabaseManager(this);
+        this.databaseManager.initialize();
+        
+        this.islandLevelManager = new IslandLevelManager(this, databaseManager);
 
         // Initialize command handler
         this.commandHandler = new CommandHandler(this, rewardsManager, playerDataManager, customBossBarManager, personalBeaconManager, personalLightningManager, islandLevelManager);
@@ -86,6 +92,13 @@ public class TaspiaSB extends JavaPlugin {
         if (playerDataManager != null) {
             playerDataManager.saveAllData();
         }
+        
+        // Cleanup database connections
+        if (databaseManager != null) {
+            databaseManager.shutdown();
+        }
+        
+        getLogger().info("TaspiaSB disabled.");
     }
 
     // Getters for managers (if needed by other classes)
@@ -111,5 +124,9 @@ public class TaspiaSB extends JavaPlugin {
 
     public IslandLevelManager getIslandLevelManager() {
         return islandLevelManager;
+    }
+    
+    public DatabaseManager getDatabaseManager() {
+        return databaseManager;
     }
 }

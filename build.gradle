@@ -39,8 +39,12 @@ dependencies {
     implementation 'de.tr7zw:item-nbt-api-plugin:2.12.1'
     compileOnly group: "com.comphenix.protocol", name: "ProtocolLib", version: "5.3.0"
     compileOnly 'com.bgsoftware:SuperiorSkyblockAPI:2025.1'
-    // AlonsoLevels API - JAR dependency (local file)  
+    // AlonsoLevels API - JAR dependency (local file)
     compileOnly files('libs/AlonsoLevelsPro-v2.4-BETA-PRO.jar')
+    
+    // MySQL database connectivity
+    implementation 'mysql:mysql-connector-java:8.0.33'
+    implementation 'com.zaxxer:HikariCP:5.0.1'
 }
 
 def targetJavaVersion = 21

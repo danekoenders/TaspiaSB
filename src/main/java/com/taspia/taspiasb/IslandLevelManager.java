@@ -27,19 +27,22 @@ import java.util.stream.Collectors;
 public class IslandLevelManager implements Listener {
     
     private final JavaPlugin plugin;
-    private final Map<UUID, Integer> islandTopLevel;
+    private final DatabaseManager databaseManager;
+    private final Map<UUID, Integer> islandHighestLevel; // Island UUID -> Highest Level
     private final Map<Integer, Set<Material>> levelBlockUnlocks;
     private final Map<Material, Integer> blockRequiredLevels;
-    
-    public IslandLevelManager(JavaPlugin plugin) {
+
+    public IslandLevelManager(JavaPlugin plugin, DatabaseManager databaseManager) {
         this.plugin = plugin;
+        this.databaseManager = databaseManager;
         this.islandTopLevel = new HashMap<>();
         this.levelBlockUnlocks = new HashMap<>();
         this.blockRequiredLevels = new HashMap<>();
-        
+
         loadBlockUnlocksFromConfig();
-        plugin.getLogger().info("IslandLevelManager initialized with direct AlonsoLevels API");
+        plugin.getLogger().info("IslandLevelManager initialized with hybrid level system (API + MySQL fallback)");
         plugin.getLogger().info("Loaded block unlocks for " + levelBlockUnlocks.size() + " levels");
+        plugin.getLogger().info("MySQL fallback enabled: " + databaseManager.isEnabled());
     }
     
     /**
@@ -122,16 +125,16 @@ public class IslandLevelManager implements Listener {
     }
     
     /**
-     * Check block placement restrictions based on island level
+     * Check block placement restrictions based on island level at placement location
      */
     @EventHandler(priority = EventPriority.HIGH)
     public void onBlockPlace(BlockPlaceEvent event) {
         if (event.isCancelled()) return;
         
         Player player = event.getPlayer();
-        UUID uuid = player.getUniqueId();
-        Location loc = event.getBlock().getLocation();
-        String world = loc.getWorld().getName();
+        UUID playerUuid = player.getUniqueId();
+        Location blockLocation = event.getBlock().getLocation();
+        String world = blockLocation.getWorld().getName();
         
         // Check if we're in an island world
         if (!world.toLowerCase().contains("islandworld")) {
@@ -146,20 +149,61 @@ public class IslandLevelManager implements Listener {
             return;
         }
         
-        int requiredLevel = blockRequiredLevels.get(blockType);
-        int topLevel = islandTopLevel.getOrDefault(uuid, 0);
-        
-        plugin.getLogger().info("Block placement check for " + player.getName() + 
-                               ": " + blockType.name() + " (Required: " + requiredLevel + 
-                               ", Island Top Level: " + topLevel + ", World: " + world + ")");
-        
-        if (topLevel < requiredLevel) {
-            event.setCancelled(true);
-            player.sendMessage("§cJe eiland heeft nog niet het juiste level voor dit blok! " +
-                              "Vereist level: §6" + requiredLevel + "§c, Hoogste level op eiland: §6" + topLevel);
+        try {
+            // Get the island at the block placement location (not player's island)
+            Island placementIsland = SuperiorSkyblockAPI.getIslandAt(blockLocation);
+            if (placementIsland == null) {
+                // No island at this location, allow placement (shouldn't happen in island world)
+                plugin.getLogger().warning("No island found at block placement location: " + blockLocation + 
+                                          " for player " + player.getName());
+                return;
+            }
             
-            plugin.getLogger().info("Blocked " + player.getName() + " from placing " + blockType.name() + 
-                                   " (insufficient island level: " + topLevel + " < " + requiredLevel + ")");
+            SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(playerUuid);
+            if (superiorPlayer == null) {
+                plugin.getLogger().warning("Could not get SuperiorPlayer for " + player.getName());
+                return;
+            }
+            
+            // Check player's relationship to the island where they're placing the block
+            boolean isMember = placementIsland.isMember(superiorPlayer);
+            boolean isCoop = placementIsland.isCoop(superiorPlayer);
+            
+            if (!isMember && !isCoop) {
+                // Player is neither member nor coop - SuperiorSkyblock should handle this,
+                // but let's log it and allow SuperiorSkyblock to cancel if needed
+                plugin.getLogger().fine("Player " + player.getName() + " is neither member nor coop of island at " + 
+                                       blockLocation + " - letting SuperiorSkyblock handle permissions");
+                return;
+            }
+            
+            // Get the highest level among all island members (including owner)
+            int islandHighestLevel = getIslandHighestLevel(placementIsland);
+            int requiredLevel = blockRequiredLevels.get(blockType);
+            
+            String playerRole = isMember ? "member" : "coop";
+            plugin.getLogger().info("Block placement check for " + player.getName() + " (" + playerRole + 
+                                   ") on island " + placementIsland.getUniqueId() + ": " + blockType.name() + 
+                                   " (Required: " + requiredLevel + ", Island Highest Level: " + islandHighestLevel + ")");
+            
+            if (islandHighestLevel < requiredLevel) {
+                event.setCancelled(true);
+                
+                String message = isMember ? 
+                    "§cYour island has not reached the required skyblock level for this block!" :
+                    "§cThis island has not reached the required skyblock level for this block!";
+                    
+                player.sendMessage(message + " Required level: §6" + requiredLevel + 
+                                  "§c, Highest level on island: §6" + islandHighestLevel);
+                
+                plugin.getLogger().info("Blocked " + player.getName() + " (" + playerRole + ") from placing " + 
+                                       blockType.name() + " (insufficient island level: " + islandHighestLevel + 
+                                       " < " + requiredLevel + ")");
+            }
+            
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING, "Error checking block placement for " + player.getName() + 
+                                 " at " + blockLocation, e);
         }
     }
     
@@ -363,17 +407,72 @@ public class IslandLevelManager implements Listener {
     }
     
     /**
-     * Get a player's level using AlonsoLevels API
+     * Get a player's level using hybrid approach (API + MySQL fallback)
      * @param uuid Player UUID
-     * @return Player level or 0 if player not loaded
+     * @return Player level or 0 if not found
      */
     private int getPlayerLevel(UUID uuid) {
         try {
-            int level = AlonsoLevelsAPI.getLevel(uuid);
-            // API returns -1 if player is not loaded
-            return level == -1 ? 0 : level;
+            // First, check if player is loaded in AlonsoLevels API
+            if (AlonsoLevelsAPI.isLoaded(uuid)) {
+                int level = AlonsoLevelsAPI.getLevel(uuid);
+                if (level != -1) {
+                    plugin.getLogger().fine("Got level " + level + " for player " + uuid + " from AlonsoLevels API");
+                    return level;
+                }
+            }
+            
+            // If player is not loaded or API returned -1, try MySQL fallback
+            if (databaseManager.isEnabled()) {
+                int level = databaseManager.getPlayerLevelFromDatabase(uuid);
+                if (level != -1) {
+                    plugin.getLogger().fine("Got level " + level + " for player " + uuid + " from MySQL database");
+                    return level;
+                } else {
+                    plugin.getLogger().fine("Player " + uuid + " not found in database, defaulting to level 0");
+                }
+            }
+            
+            return 0;
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to get level for player " + uuid + ": " + e.getMessage());
+            return 0;
+        }
+    }
+    
+    /**
+     * Get the highest level among all members of an island
+     * @param island The island to check
+     * @return Highest level among all island members (including owner)
+     */
+    private int getIslandHighestLevel(Island island) {
+        try {
+            // Get all island members including the owner
+            List<SuperiorPlayer> members = island.getIslandMembers(true);
+            
+            if (members.isEmpty()) {
+                plugin.getLogger().warning("Island " + island.getUniqueId() + " has no members");
+                return 0;
+            }
+            
+            int highest = members.stream()
+                    .mapToInt(sp -> {
+                        try {
+                            return getPlayerLevel(sp.getUniqueId());
+                        } catch (Exception e) {
+                            plugin.getLogger().warning("Failed to get level for island member " + sp.getName() + ": " + e.getMessage());
+                            return 0;
+                        }
+                    })
+                    .max()
+                    .orElse(0);
+            
+            plugin.getLogger().fine("Island " + island.getUniqueId() + " highest level: " + highest + 
+                                   " (among " + members.size() + " members)");
+            return highest;
+            
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error calculating highest level for island " + island.getUniqueId() + ": " + e.getMessage());
             return 0;
         }
     }

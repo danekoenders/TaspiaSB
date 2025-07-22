@@ -119,11 +119,13 @@ public class CommandHandler implements CommandExecutor, TabCompleter {
         rewardsManager.reloadRewards();
         playerDataManager.reloadPlayerData();
         islandLevelManager.reloadBlockUnlocks();
+        plugin.getDatabaseManager().reload();
         
         sender.sendMessage(ChatColor.GREEN + "TaspiaSB configuration reloaded from server config.");
         sender.sendMessage(ChatColor.GRAY + "✓ Rewards reloaded");
         sender.sendMessage(ChatColor.GRAY + "✓ Player data reloaded");
         sender.sendMessage(ChatColor.GRAY + "✓ Island block unlocks reloaded");
+        sender.sendMessage(ChatColor.GRAY + "✓ MySQL configuration reloaded");
         return true;
     }
 
@@ -689,6 +691,17 @@ public class CommandHandler implements CommandExecutor, TabCompleter {
                         } catch (Exception e) {
                             sender.sendMessage(ChatColor.RED + "Error reading server config: " + e.getMessage());
                         }
+                        
+                        // Show MySQL database status
+                        sender.sendMessage(ChatColor.YELLOW + "\n=== MySQL Database Status ===");
+                        DatabaseManager dbManager = plugin.getDatabaseManager();
+                        if (dbManager.isEnabled()) {
+                            sender.sendMessage(ChatColor.GREEN + "MySQL fallback: ENABLED");
+                            sender.sendMessage(ChatColor.GRAY + dbManager.getConnectionInfo());
+                        } else {
+                            sender.sendMessage(ChatColor.RED + "MySQL fallback: DISABLED");
+                        }
+                        
                         break;
 
             default:
