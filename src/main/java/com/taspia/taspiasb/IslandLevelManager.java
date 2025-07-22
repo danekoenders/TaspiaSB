@@ -5,6 +5,7 @@ import com.alonsoaliaga.alonsolevels.api.events.LevelChangeEvent;
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI;
 import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -35,7 +36,7 @@ public class IslandLevelManager implements Listener {
     public IslandLevelManager(JavaPlugin plugin, DatabaseManager databaseManager) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
-        this.islandTopLevel = new HashMap<>();
+        this.islandHighestLevel = new HashMap<>();
         this.levelBlockUnlocks = new HashMap<>();
         this.blockRequiredLevels = new HashMap<>();
 
@@ -43,6 +44,7 @@ public class IslandLevelManager implements Listener {
         plugin.getLogger().info("IslandLevelManager initialized with hybrid level system (API + MySQL fallback)");
         plugin.getLogger().info("Loaded block unlocks for " + levelBlockUnlocks.size() + " levels");
         plugin.getLogger().info("MySQL fallback enabled: " + databaseManager.isEnabled());
+        plugin.getLogger().info("Island-based caching system enabled");
     }
     
     /**
@@ -51,32 +53,24 @@ public class IslandLevelManager implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        UUID uuid = player.getUniqueId();
+        UUID playerUuid = player.getUniqueId();
         
         try {
-            Island island = SuperiorSkyblockAPI.getPlayer(uuid).getIsland();
+            SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(playerUuid);
+            if (superiorPlayer == null) {
+                plugin.getLogger().warning("Could not get SuperiorPlayer for " + player.getName());
+                return;
+            }
+            
+            Island island = superiorPlayer.getIsland();
             if (island == null) {
                 plugin.getLogger().info("Player " + player.getName() + " joined but has no island");
                 return;
             }
             
-            List<SuperiorPlayer> members = island.getIslandMembers(true);
-            int highest = members.stream()
-                    .mapToInt(sp -> {
-                        try {
-                            return getPlayerLevel(sp.getUniqueId());
-                        } catch (Exception e) {
-                            plugin.getLogger().warning("Failed to get level for player " + sp.getName() + ": " + e.getMessage());
-                            return 0;
-                        }
-                    })
-                    .max()
-                    .orElse(0);
+            // Update the cache for this island
+            updateIslandCache(island);
             
-            islandTopLevel.put(uuid, highest);
-            plugin.getLogger().info("Cached highest island level for " + player.getName() + ": " + highest + 
-                                   " (Island members: " + members.size() + ")");
-                                   
         } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING, "Error caching island level for player " + player.getName(), e);
         }
@@ -88,36 +82,26 @@ public class IslandLevelManager implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onLevelChange(LevelChangeEvent event) {
         Player player = event.getPlayer();
-        UUID uuid = player.getUniqueId();
+        UUID playerUuid = player.getUniqueId();
         
         try {
-            Island island = SuperiorSkyblockAPI.getPlayer(uuid).getIsland();
-            if (island == null) {
-                plugin.getLogger().info("Level change for " + player.getName() + " but player has no island");
+            SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(playerUuid);
+            if (superiorPlayer == null) {
+                plugin.getLogger().warning("Could not get SuperiorPlayer for " + player.getName());
                 return;
             }
             
-            List<SuperiorPlayer> members = island.getIslandMembers(true);
-            int highest = members.stream()
-                    .mapToInt(sp -> {
-                        try {
-                            return getPlayerLevel(sp.getUniqueId());
-                        } catch (Exception e) {
-                            plugin.getLogger().warning("Failed to get level for player " + sp.getName() + ": " + e.getMessage());
-                            return 0;
-                        }
-                    })
-                    .max()
-                    .orElse(0);
-            
-            // Update for all members of the island
-            for (SuperiorPlayer sp : members) {
-                islandTopLevel.put(sp.getUniqueId(), highest);
+            Island island = superiorPlayer.getIsland();
+            if (island == null) {
+                plugin.getLogger().info("Player " + player.getName() + " level changed but has no island");
+                return;
             }
             
-            plugin.getLogger().info("Updated island level cache for " + members.size() + " members after " + 
-                                   player.getName() + "'s level change. New highest level: " + highest + 
-                                   " (Old: " + event.getOldLevel() + ", New: " + event.getNewLevel() + ")");
+            // Update the cache for this island
+            updateIslandCache(island);
+            
+            plugin.getLogger().info("Updated island level cache after " + player.getName() + 
+                                   "'s level change (Old: " + event.getOldLevel() + ", New: " + event.getNewLevel() + ")");
                                    
         } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING, "Error updating island level cache for player " + player.getName(), e);
@@ -177,8 +161,8 @@ public class IslandLevelManager implements Listener {
                 return;
             }
             
-            // Get the highest level among all island members (including owner)
-            int islandHighestLevel = getIslandHighestLevel(placementIsland);
+                         // Get the cached highest level for this island
+             int islandHighestLevel = getCachedIslandLevel(placementIsland);
             int requiredLevel = blockRequiredLevels.get(blockType);
             
             String playerRole = isMember ? "member" : "coop";
@@ -190,11 +174,10 @@ public class IslandLevelManager implements Listener {
                 event.setCancelled(true);
                 
                 String message = isMember ? 
-                    "§cYour island has not reached the required skyblock level for this block!" :
-                    "§cThis island has not reached the required skyblock level for this block!";
+                    "§cTo place this block, an island member needs to reach skyblock level " + requiredLevel + "!" :
+                    "§cTo place this block, a member of this island needs to reach skyblock level " + requiredLevel + "!";
                     
-                player.sendMessage(message + " Required level: §6" + requiredLevel + 
-                                  "§c, Highest level on island: §6" + islandHighestLevel);
+                player.sendMessage(message + "§c Highest level on island: §6" + islandHighestLevel + "§c.");
                 
                 plugin.getLogger().info("Blocked " + player.getName() + " (" + playerRole + ") from placing " + 
                                        blockType.name() + " (insufficient island level: " + islandHighestLevel + 
@@ -208,17 +191,9 @@ public class IslandLevelManager implements Listener {
     }
     
     /**
-     * Optional: Clean up cache when player leaves
+     * Note: We don't clean up island cache when players leave since islands persist
+     * and other members may still be online. Cache cleanup happens during refreshAll.
      */
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onQuit(PlayerQuitEvent event) {
-        UUID uuid = event.getPlayer().getUniqueId();
-        Integer removedLevel = islandTopLevel.remove(uuid);
-        if (removedLevel != null) {
-            plugin.getLogger().info("Removed cached island level for " + event.getPlayer().getName() + 
-                                   " (was: " + removedLevel + ")");
-        }
-    }
     
     /**
      * Load block unlock configuration from server config.yml only (not default)
@@ -285,71 +260,7 @@ public class IslandLevelManager implements Listener {
         plugin.getLogger().info("Loaded " + blockRequiredLevels.size() + " block restrictions across " + levelBlockUnlocks.size() + " levels");
     }
     
-    /**
-     * Get the cached island top level for a player
-     * @param uuid Player UUID
-     * @return Cached top level or 0 if not cached
-     */
-    public int getCachedIslandLevel(UUID uuid) {
-        return islandTopLevel.getOrDefault(uuid, 0);
-    }
-    
-    /**
-     * Manually update cache for a player (for admin commands or debugging)
-     * @param uuid Player UUID
-     * @param level New level to cache
-     */
-    public void updateCache(UUID uuid, int level) {
-        islandTopLevel.put(uuid, level);
-        plugin.getLogger().info("Manually updated cache for " + uuid + " to level " + level);
-    }
-    
-    /**
-     * Get cache size for monitoring
-     * @return Current cache size
-     */
-    public int getCacheSize() {
-        return islandTopLevel.size();
-    }
-    
-    /**
-     * Clear the entire cache (for debugging/admin purposes)
-     */
-    public void clearCache() {
-        int size = islandTopLevel.size();
-        islandTopLevel.clear();
-        plugin.getLogger().info("Cleared island level cache (" + size + " entries removed)");
-    }
-    
-    /**
-     * Force refresh cache for all online players
-     */
-    public void refreshAllCache() {
-        plugin.getServer().getOnlinePlayers().forEach(player -> {
-            try {
-                UUID uuid = player.getUniqueId();
-                Island island = SuperiorSkyblockAPI.getPlayer(uuid).getIsland();
-                if (island == null) return;
-                
-                List<SuperiorPlayer> members = island.getIslandMembers(true);
-                int highest = members.stream()
-                        .mapToInt(sp -> {
-                            try {
-                                return getPlayerLevel(sp.getUniqueId());
-                            } catch (Exception e) {
-                                return 0;
-                            }
-                        })
-                        .max()
-                        .orElse(0);
-                
-                islandTopLevel.put(uuid, highest);
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.WARNING, "Error refreshing cache for " + player.getName(), e);
-            }
-        });
-        plugin.getLogger().info("Refreshed island level cache for all online players");
-    }
+
     
     /**
      * Get all blocks unlocked up to a certain level
@@ -441,18 +352,20 @@ public class IslandLevelManager implements Listener {
     }
     
     /**
-     * Get the highest level among all members of an island
-     * @param island The island to check
-     * @return Highest level among all island members (including owner)
+     * Update the cached level for a specific island
+     * @param island The island to update cache for
      */
-    private int getIslandHighestLevel(Island island) {
+    public void updateIslandCache(Island island) {
         try {
-            // Get all island members including the owner
+            UUID islandUuid = island.getUniqueId();
+            
+            // Calculate the highest level among all island members
             List<SuperiorPlayer> members = island.getIslandMembers(true);
             
             if (members.isEmpty()) {
-                plugin.getLogger().warning("Island " + island.getUniqueId() + " has no members");
-                return 0;
+                plugin.getLogger().warning("Island " + islandUuid + " has no members");
+                islandHighestLevel.put(islandUuid, 0);
+                return;
             }
             
             int highest = members.stream()
@@ -467,13 +380,88 @@ public class IslandLevelManager implements Listener {
                     .max()
                     .orElse(0);
             
-            plugin.getLogger().fine("Island " + island.getUniqueId() + " highest level: " + highest + 
+            // Cache the result
+            islandHighestLevel.put(islandUuid, highest);
+            
+            plugin.getLogger().fine("Updated island cache: " + islandUuid + " -> level " + highest + 
                                    " (among " + members.size() + " members)");
-            return highest;
             
         } catch (Exception e) {
-            plugin.getLogger().warning("Error calculating highest level for island " + island.getUniqueId() + ": " + e.getMessage());
-            return 0;
+            plugin.getLogger().warning("Error updating cache for island " + island.getUniqueId() + ": " + e.getMessage());
         }
+    }
+    
+    /**
+     * Get the cached level for an island
+     * @param island The island to get cached level for
+     * @return Cached highest level, or calculates and caches if not present
+     */
+    public int getCachedIslandLevel(Island island) {
+        UUID islandUuid = island.getUniqueId();
+        
+        // Check if we have this island cached
+        Integer cachedLevel = islandHighestLevel.get(islandUuid);
+        if (cachedLevel != null) {
+            plugin.getLogger().fine("Retrieved cached level " + cachedLevel + " for island " + islandUuid);
+            return cachedLevel;
+        }
+        
+        // Not cached, calculate and cache it
+        plugin.getLogger().fine("Island " + islandUuid + " not in cache, calculating...");
+        updateIslandCache(island);
+        
+        return islandHighestLevel.getOrDefault(islandUuid, 0);
+    }
+    
+    /**
+     * Refresh cache for all online players' islands
+     */
+    public void refreshAllCache() {
+        plugin.getLogger().info("Refreshing all island level caches...");
+        
+        Set<UUID> processedIslands = new HashSet<>();
+        int refreshedCount = 0;
+        
+        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+            try {
+                SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(onlinePlayer.getUniqueId());
+                if (superiorPlayer == null) continue;
+                
+                Island island = superiorPlayer.getIsland();
+                if (island == null) continue;
+                
+                UUID islandUuid = island.getUniqueId();
+                if (processedIslands.contains(islandUuid)) continue;
+                
+                updateIslandCache(island);
+                processedIslands.add(islandUuid);
+                refreshedCount++;
+                
+            } catch (Exception e) {
+                plugin.getLogger().warning("Error refreshing cache for player " + onlinePlayer.getName() + ": " + e.getMessage());
+            }
+        }
+        
+        plugin.getLogger().info("Refreshed " + refreshedCount + " island caches");
+    }
+    
+    /**
+     * Clear all cached island levels
+     */
+    public void clearCache() {
+        int clearedCount = islandHighestLevel.size();
+        islandHighestLevel.clear();
+        plugin.getLogger().info("Cleared " + clearedCount + " cached island levels");
+    }
+    
+    /**
+     * Get cache statistics
+     * @return Map with cache information
+     */
+    public Map<String, Object> getCacheStats() {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("cached_islands", islandHighestLevel.size());
+        stats.put("online_players", Bukkit.getOnlinePlayers().size());
+        return stats;
     }
 } 

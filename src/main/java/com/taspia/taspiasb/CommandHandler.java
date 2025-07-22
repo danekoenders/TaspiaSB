@@ -9,6 +9,10 @@ import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+
+import com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI;
+import com.bgsoftware.superiorskyblock.api.island.Island;
+import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -579,10 +583,10 @@ public class CommandHandler implements CommandExecutor, TabCompleter {
 
         switch (args[1].toLowerCase()) {
             case "info":
-                int cacheSize = islandLevelManager.getCacheSize();
+                Map<String, Object> stats = islandLevelManager.getCacheStats();
                 sender.sendMessage(ChatColor.GREEN + "Island Level Cache Info:");
-                sender.sendMessage(ChatColor.YELLOW + "  Cached players: " + cacheSize);
-                sender.sendMessage(ChatColor.YELLOW + "  Online players: " + Bukkit.getOnlinePlayers().size());
+                sender.sendMessage(ChatColor.YELLOW + "  Cached islands: " + stats.get("cached_islands"));
+                sender.sendMessage(ChatColor.YELLOW + "  Online players: " + stats.get("online_players"));
                 break;
 
             case "refresh":
@@ -607,8 +611,30 @@ public class CommandHandler implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 
-                int cachedLevel = islandLevelManager.getCachedIslandLevel(target.getUniqueId());
-                sender.sendMessage(ChatColor.GREEN + "Cached island level for " + target.getName() + ": " + cachedLevel);
+                try {
+                    SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(target.getUniqueId());
+                    if (superiorPlayer == null) {
+                        sender.sendMessage(ChatColor.RED + "Could not get island data for " + target.getName());
+                        return true;
+                    }
+                    
+                    Island island = superiorPlayer.getIsland();
+                    if (island == null) {
+                        sender.sendMessage(ChatColor.RED + target.getName() + " has no island.");
+                        return true;
+                    }
+                    
+                    // Force update cache and get level
+                    islandLevelManager.updateIslandCache(island);
+                    
+                    sender.sendMessage(ChatColor.GREEN + "Island info for " + target.getName() + ":");
+                    sender.sendMessage(ChatColor.YELLOW + "  Island UUID: " + island.getUniqueId());
+                    sender.sendMessage(ChatColor.YELLOW + "  Island members: " + island.getIslandMembers(true).size());
+                    sender.sendMessage(ChatColor.YELLOW + "  Cached highest level: " + islandLevelManager.getCachedIslandLevel(island));
+                    
+                } catch (Exception e) {
+                    sender.sendMessage(ChatColor.RED + "Error checking island for " + target.getName() + ": " + e.getMessage());
+                }
                 break;
 
             case "blocks":
