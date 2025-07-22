@@ -1,13 +1,20 @@
 # Default configuration for TaspiaSB Plugin
-# Define rewards for each level here
+# Define rewards and block unlocks for each level here
 levels:
-  # Rewards for players at level 5
+  # Level 5: Basic blocks and minion reward
   5:
     minion:
       name: "&f1x &eMiner Minion"
       material: PLAYER_HEAD
       command: "minions give %player% minion"
-  # Rewards for players at level 10
+    island-block-unlocks:
+      - IRON_BLOCK
+      - ENCHANTING_TABLE
+      - ANVIL
+      - CHIPPED_ANVIL
+      - DAMAGED_ANVIL
+  
+  # Level 10: Valuable blocks and rewards
   10:
     golden_apples:
       name: "&f3x &eGolden Apples"
@@ -17,6 +24,31 @@ levels:
       name: "&f3x &eStone Blocks"
       material: STONE
       command: "minecraft:give %player% stone 3"
+    island-block-unlocks:
+      - DIAMOND_BLOCK
+      - BREWING_STAND
+      
+  # Level 15: Advanced blocks
+  15:
+    island-block-unlocks:
+      - CONDUIT
+      - BEACON
+      
+  # Level 20: Rare blocks  
+  20:
+    island-block-unlocks:
+      - EMERALD_BLOCK
+      
+  # Level 25: Premium blocks
+  25:
+    island-block-unlocks:
+      - NETHERITE_BLOCK
+      
+  # Level 50: Ultra rare blocks
+  50:
+    island-block-unlocks:
+      - DRAGON_EGG
+      
   # Add more levels and rewards as needed
 
 # You can add other plugin-wide configurations below

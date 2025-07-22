@@ -4,13 +4,22 @@ import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-public class CommandHandler implements CommandExecutor {
+import java.io.File;
+import java.util.*;
+import java.util.stream.Collectors;
+
+public class CommandHandler implements CommandExecutor, TabCompleter {
     
     private final TaspiaSB plugin;
     private final RewardsManager rewardsManager;
@@ -18,14 +27,16 @@ public class CommandHandler implements CommandExecutor {
     private final CustomBossBarManager customBossBarManager;
     private final PersonalBeaconManager personalBeaconManager;
     private final PersonalLightningManager personalLightningManager;
+    private final IslandLevelManager islandLevelManager;
 
-    public CommandHandler(TaspiaSB plugin, RewardsManager rewardsManager, PlayerDataManager playerDataManager, CustomBossBarManager customBossBarManager, PersonalBeaconManager personalBeaconManager, PersonalLightningManager personalLightningManager) {
+    public CommandHandler(TaspiaSB plugin, RewardsManager rewardsManager, PlayerDataManager playerDataManager, CustomBossBarManager customBossBarManager, PersonalBeaconManager personalBeaconManager, PersonalLightningManager personalLightningManager, IslandLevelManager islandLevelManager) {
         this.plugin = plugin;
         this.rewardsManager = rewardsManager;
         this.playerDataManager = playerDataManager;
         this.customBossBarManager = customBossBarManager;
         this.personalBeaconManager = personalBeaconManager;
         this.personalLightningManager = personalLightningManager;
+        this.islandLevelManager = islandLevelManager;
     }
 
     @Override
@@ -71,7 +82,7 @@ public class CommandHandler implements CommandExecutor {
 
     private boolean handleTaspiaSBCommand(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb <reload|npctalk|bossbar|zone|cutscene|pbeacon|plightning>");
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb <reload|npctalk|bossbar|zone|cutscene|pbeacon|plightning|islevel>");
             return true;
         }
 
@@ -90,8 +101,10 @@ public class CommandHandler implements CommandExecutor {
                 return handlePersonalBeaconCommand(sender, args);
             case "plightning":
                 return handlePersonalLightningCommand(sender, args);
+            case "islevel":
+                return handleIslandLevelCommand(sender, args);
             default:
-                sender.sendMessage(ChatColor.RED + "Usage: /taspiasb <reload|npctalk|bossbar|zone|cutscene|pbeacon|plightning>");
+                sender.sendMessage(ChatColor.RED + "Usage: /taspiasb <reload|npctalk|bossbar|zone|cutscene|pbeacon|plightning|islevel>");
                 return true;
         }
     }
@@ -102,10 +115,15 @@ public class CommandHandler implements CommandExecutor {
             return true;
         }
 
-        plugin.reloadConfig();
+        // Reload each manager individually from server config (no merged config)
         rewardsManager.reloadRewards();
         playerDataManager.reloadPlayerData();
-        sender.sendMessage(ChatColor.GREEN + "TaspiaSB configuration and player data reloaded.");
+        islandLevelManager.reloadBlockUnlocks();
+        
+        sender.sendMessage(ChatColor.GREEN + "TaspiaSB configuration reloaded from server config.");
+        sender.sendMessage(ChatColor.GRAY + "✓ Rewards reloaded");
+        sender.sendMessage(ChatColor.GRAY + "✓ Player data reloaded");
+        sender.sendMessage(ChatColor.GRAY + "✓ Island block unlocks reloaded");
         return true;
     }
 
@@ -537,6 +555,454 @@ public class CommandHandler implements CommandExecutor {
             sender.sendMessage(ChatColor.RED + "Failed to spawn personal lightning. Please check the console for errors.");
         }
         return true;
+    }
+
+    private boolean handleIslandLevelCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("taspiasb.admin")) {
+            sender.sendMessage(ChatColor.RED + "You do not have permission to perform this command.");
+            return true;
+        }
+
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "Usage: /taspiasb islevel <info|refresh|clear|check|blocks|reload|debug>");
+            sender.sendMessage(ChatColor.YELLOW + "  info - Show cache statistics");
+            sender.sendMessage(ChatColor.YELLOW + "  refresh - Refresh cache for all online players");
+            sender.sendMessage(ChatColor.YELLOW + "  clear - Clear the entire cache");
+            sender.sendMessage(ChatColor.YELLOW + "  check <player> - Check a specific player's cached level");
+            sender.sendMessage(ChatColor.YELLOW + "  blocks <level> - Show unlocked blocks at level");
+            sender.sendMessage(ChatColor.YELLOW + "  reload - Reload block unlock configuration");
+            sender.sendMessage(ChatColor.YELLOW + "  debug - Show config debug information");
+            return true;
+        }
+
+        switch (args[1].toLowerCase()) {
+            case "info":
+                int cacheSize = islandLevelManager.getCacheSize();
+                sender.sendMessage(ChatColor.GREEN + "Island Level Cache Info:");
+                sender.sendMessage(ChatColor.YELLOW + "  Cached players: " + cacheSize);
+                sender.sendMessage(ChatColor.YELLOW + "  Online players: " + Bukkit.getOnlinePlayers().size());
+                break;
+
+            case "refresh":
+                islandLevelManager.refreshAllCache();
+                sender.sendMessage(ChatColor.GREEN + "Island level cache refreshed for all online players.");
+                break;
+
+            case "clear":
+                islandLevelManager.clearCache();
+                sender.sendMessage(ChatColor.GREEN + "Island level cache cleared.");
+                break;
+
+            case "check":
+                if (args.length < 3) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /taspiasb islevel check <player>");
+                    return true;
+                }
+                
+                Player target = Bukkit.getPlayer(args[2]);
+                if (target == null) {
+                    sender.sendMessage(ChatColor.RED + "Player '" + args[2] + "' not found or not online.");
+                    return true;
+                }
+                
+                int cachedLevel = islandLevelManager.getCachedIslandLevel(target.getUniqueId());
+                sender.sendMessage(ChatColor.GREEN + "Cached island level for " + target.getName() + ": " + cachedLevel);
+                break;
+
+            case "blocks":
+                if (args.length < 3) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /taspiasb islevel blocks <level>");
+                    return true;
+                }
+                
+                try {
+                    int level = Integer.parseInt(args[2]);
+                    Set<Material> unlockedBlocks = islandLevelManager.getUnlockedBlocks(level);
+                    
+                    if (unlockedBlocks.isEmpty()) {
+                        sender.sendMessage(ChatColor.YELLOW + "No blocks unlocked at level " + level + " or below.");
+                    } else {
+                        sender.sendMessage(ChatColor.GREEN + "Blocks unlocked at level " + level + " or below:");
+                        for (Material material : unlockedBlocks) {
+                            int requiredLevel = islandLevelManager.getRequiredLevelForBlock(material);
+                            sender.sendMessage(ChatColor.YELLOW + "  - " + material.name() + 
+                                             ChatColor.GRAY + " (unlocked at level " + requiredLevel + ")");
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    sender.sendMessage(ChatColor.RED + "Invalid level number: " + args[2]);
+                }
+                break;
+
+            case "reload":
+                islandLevelManager.reloadBlockUnlocks();
+                sender.sendMessage(ChatColor.GREEN + "Block unlock configuration reloaded successfully.");
+                break;
+                
+                                case "debug":
+                        sender.sendMessage(ChatColor.YELLOW + "=== Island Level Config Debug ===");
+                        
+                        // Show server config file status
+                        File serverConfigFile = new File(plugin.getDataFolder(), "config.yml");
+                        if (!serverConfigFile.exists()) {
+                            sender.sendMessage(ChatColor.RED + "Server config file does not exist!");
+                            sender.sendMessage(ChatColor.GRAY + "Expected path: " + serverConfigFile.getAbsolutePath());
+                            sender.sendMessage(ChatColor.YELLOW + "Using default config only (no block unlocks)");
+                            break;
+                        }
+                        
+                        sender.sendMessage(ChatColor.GREEN + "Server config file exists: " + serverConfigFile.getAbsolutePath());
+                        
+                        // Load server config directly (not merged)
+                        try {
+                            FileConfiguration serverConfig = YamlConfiguration.loadConfiguration(serverConfigFile);
+                            ConfigurationSection levelsSection = serverConfig.getConfigurationSection("levels");
+                            
+                            if (levelsSection == null) {
+                                sender.sendMessage(ChatColor.RED + "No 'levels' section found in server config!");
+                                break;
+                            }
+                            
+                            sender.sendMessage(ChatColor.GRAY + "Levels in server config: " + levelsSection.getKeys(false));
+                            sender.sendMessage(ChatColor.GRAY + "Total blocks configured: " + islandLevelManager.getBlockRequiredLevels().size());
+                            
+                            sender.sendMessage(ChatColor.YELLOW + "\n=== Server Config Block Unlocks ===");
+                            levelsSection.getKeys(false).stream()
+                                .sorted((a, b) -> {
+                                    try {
+                                        return Integer.compare(Integer.parseInt(a), Integer.parseInt(b));
+                                    } catch (NumberFormatException e) {
+                                        return a.compareTo(b);
+                                    }
+                                })
+                                .forEach(levelKey -> {
+                                    ConfigurationSection levelSection = levelsSection.getConfigurationSection(levelKey);
+                                    if (levelSection != null && levelSection.contains("island-block-unlocks")) {
+                                        List<String> blocks = levelSection.getStringList("island-block-unlocks");
+                                        if (!blocks.isEmpty()) {
+                                            sender.sendMessage(ChatColor.AQUA + "Level " + levelKey + ": " + 
+                                                ChatColor.WHITE + String.join(", ", blocks));
+                                        }
+                                    }
+                                });
+                                
+                        } catch (Exception e) {
+                            sender.sendMessage(ChatColor.RED + "Error reading server config: " + e.getMessage());
+                        }
+                        break;
+
+            default:
+                sender.sendMessage(ChatColor.RED + "Usage: /taspiasb islevel <info|refresh|clear|check|blocks|reload|debug>");
+                break;
+        }
+
+        return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        List<String> completions = new ArrayList<>();
+        
+        if (command.getName().equalsIgnoreCase("collect")) {
+            // /collect has no arguments
+            return completions;
+        }
+        
+        if (command.getName().equalsIgnoreCase("taspiasb")) {
+            return getTaskSBTabCompletions(sender, args);
+        }
+        
+        return completions;
+    }
+    
+    private List<String> getTaskSBTabCompletions(CommandSender sender, String[] args) {
+        List<String> completions = new ArrayList<>();
+        
+        if (args.length == 1) {
+            // First argument: main subcommands
+            List<String> subcommands = Arrays.asList("reload", "npctalk", "bossbar", "zone", "cutscene", "pbeacon", "plightning", "islevel");
+            return filterCompletions(subcommands, args[0]);
+        }
+        
+        if (args.length >= 2) {
+            String subcommand = args[0].toLowerCase();
+            
+            switch (subcommand) {
+                case "npctalk":
+                    return getNpcTalkCompletions(args);
+                    
+                case "bossbar":
+                    return getBossbarCompletions(args);
+                    
+                case "zone":
+                    return getZoneCompletions(args);
+                    
+                case "cutscene":
+                    return getCutsceneCompletions(args);
+                    
+                case "pbeacon":
+                    return getPersonalBeaconCompletions(sender, args);
+                    
+                case "plightning":
+                    return getPersonalLightningCompletions(sender, args);
+                    
+                case "islevel":
+                    return getIslandLevelCompletions(args);
+                    
+                case "reload":
+                    // No additional arguments
+                    return completions;
+                    
+                default:
+                    return completions;
+            }
+        }
+        
+        return completions;
+    }
+    
+    private List<String> getNpcTalkCompletions(String[] args) {
+        if (args.length == 2) {
+            // NPC IDs - you can expand this list based on your NPCs
+            return filterCompletions(Arrays.asList("wizard_of_alibon", "merchant", "guard"), args[1]);
+        }
+        return new ArrayList<>();
+    }
+    
+    private List<String> getBossbarCompletions(String[] args) {
+        List<String> completions = new ArrayList<>();
+        
+        if (args.length == 2) {
+            return filterCompletions(Arrays.asList("add", "remove", "list", "colors"), args[1]);
+        }
+        
+        if (args.length == 3) {
+            String action = args[1].toLowerCase();
+            if (Arrays.asList("add", "remove", "list").contains(action)) {
+                // Player names
+                return getOnlinePlayerNames(args[2]);
+            }
+        }
+        
+        if (args.length == 4 && args[1].equalsIgnoreCase("remove")) {
+            // Boss bar IDs for removal - get from CustomBossBarManager if player exists
+            if (args.length > 2 && !args[2].isEmpty()) {
+                Player targetPlayer = Bukkit.getPlayer(args[2]);
+                if (targetPlayer != null) {
+                    Set<String> bossBarIds = customBossBarManager.getPlayerBossBars(targetPlayer).keySet();
+                    return filterCompletions(new ArrayList<>(bossBarIds), args[3]);
+                }
+            }
+            return filterCompletions(Arrays.asList("<boss_bar_id>"), args[3]);
+        }
+        
+        if (args.length == 5 && args[1].equalsIgnoreCase("add")) {
+            // Boss bar colors - get dynamically from CustomBossBarManager
+            String availableColors = customBossBarManager.getAvailableColors();
+            List<String> colors = Arrays.asList(availableColors.split(", "));
+            return filterCompletions(colors, args[4]);
+        }
+        
+        return completions;
+    }
+    
+    private List<String> getZoneCompletions(String[] args) {
+        if (args.length == 2) {
+            return filterCompletions(Arrays.asList("unlock", "lock"), args[1]);
+        }
+        
+        if (args.length == 3) {
+            // Zone IDs - you can expand this based on your zones
+            return filterCompletions(Arrays.asList("spawn", "pvp", "mining", "farming"), args[2]);
+        }
+        
+        if (args.length == 4) {
+            // Player names
+            return getOnlinePlayerNames(args[3]);
+        }
+        
+        return new ArrayList<>();
+    }
+    
+    private List<String> getCutsceneCompletions(String[] args) {
+        if (args.length == 2) {
+            // Cutscene IDs - you can expand this based on your cutscenes
+            return filterCompletions(Arrays.asList("intro", "tutorial", "boss_fight"), args[1]);
+        }
+        
+        if (args.length == 3) {
+            // Player names
+            return getOnlinePlayerNames(args[2]);
+        }
+        
+        if (args.length == 4) {
+            return filterCompletions(Arrays.asList("true", "false"), args[3]);
+        }
+        
+        return new ArrayList<>();
+    }
+    
+    private List<String> getPersonalBeaconCompletions(CommandSender sender, String[] args) {
+        List<String> completions = new ArrayList<>();
+        
+        if (args.length == 2) {
+            return filterCompletions(Arrays.asList("add", "remove", "list", "colors"), args[1]);
+        }
+        
+        if (args.length == 3) {
+            String action = args[1].toLowerCase();
+            if (Arrays.asList("add", "remove", "list").contains(action)) {
+                // Player names
+                return getOnlinePlayerNames(args[2]);
+            }
+        }
+        
+        if (args.length == 4 && args[1].equalsIgnoreCase("remove")) {
+            // Beacon IDs - get from PersonalBeaconManager if player exists
+            if (args.length > 2 && !args[2].isEmpty()) {
+                Player targetPlayer = Bukkit.getPlayer(args[2]);
+                if (targetPlayer != null) {
+                    Set<String> beaconIds = personalBeaconManager.getPlayerBeacons(targetPlayer).keySet();
+                    return filterCompletions(new ArrayList<>(beaconIds), args[3]);
+                }
+            }
+            return filterCompletions(Arrays.asList("<beacon_id>"), args[3]);
+        }
+        
+        if (args.length == 4 && args[1].equalsIgnoreCase("add")) {
+            // Beacon ID
+            return filterCompletions(Arrays.asList("<beacon_id>"), args[3]);
+        }
+        
+        if (args.length == 5 && args[1].equalsIgnoreCase("add")) {
+            // X coordinate for beacon
+            return getCoordinateSuggestions(sender, "x", args[4]);
+        }
+        
+        if (args.length == 6 && args[1].equalsIgnoreCase("add")) {
+            // Y coordinate for beacon
+            return getCoordinateSuggestions(sender, "y", args[5]);
+        }
+        
+        if (args.length == 7 && args[1].equalsIgnoreCase("add")) {
+            // Z coordinate for beacon
+            return getCoordinateSuggestions(sender, "z", args[6]);
+        }
+        
+        if (args.length == 8 && args[1].equalsIgnoreCase("add")) {
+            // Beacon colors - get them dynamically from PersonalBeaconManager
+            String availableColors = personalBeaconManager.getAvailableColors();
+            List<String> colors = Arrays.asList(availableColors.split(", "));
+            return filterCompletions(colors, args[7]);
+        }
+        
+        return completions;
+    }
+    
+    private List<String> getPersonalLightningCompletions(CommandSender sender, String[] args) {
+        if (args.length == 2) {
+            // Player names
+            return getOnlinePlayerNames(args[1]);
+        }
+        
+        if (args.length == 3) {
+            // World names - get all loaded worlds
+            List<String> worldNames = Bukkit.getWorlds().stream()
+                    .map(World::getName)
+                    .collect(Collectors.toList());
+            return filterCompletions(worldNames, args[2]);
+        }
+        
+        if (args.length == 4) {
+            // X coordinate - suggest player's current X if they exist
+            return getCoordinateSuggestions(sender, "x", args[3]);
+        }
+        
+        if (args.length == 5) {
+            // Y coordinate - suggest player's current Y if they exist
+            return getCoordinateSuggestions(sender, "y", args[4]);
+        }
+        
+        if (args.length == 6) {
+            // Z coordinate - suggest player's current Z if they exist
+            return getCoordinateSuggestions(sender, "z", args[5]);
+        }
+        
+        return new ArrayList<>();
+    }
+    
+    private List<String> getIslandLevelCompletions(String[] args) {
+        if (args.length == 2) {
+            return filterCompletions(Arrays.asList("info", "refresh", "clear", "check", "blocks", "reload", "debug"), args[1]);
+        }
+        
+        if (args.length == 3) {
+            String action = args[1].toLowerCase();
+            
+            if (action.equals("check")) {
+                // Player names
+                return getOnlinePlayerNames(args[2]);
+            }
+            
+            if (action.equals("blocks")) {
+                // Level numbers - suggest some common levels
+                return filterCompletions(Arrays.asList("5", "10", "15", "20", "25", "30", "50", "100"), args[2]);
+            }
+        }
+        
+        return new ArrayList<>();
+    }
+    
+    private List<String> getOnlinePlayerNames(String partialName) {
+        return Bukkit.getOnlinePlayers().stream()
+                .map(Player::getName)
+                .filter(name -> name.toLowerCase().startsWith(partialName.toLowerCase()))
+                .collect(Collectors.toList());
+    }
+    
+    private List<String> filterCompletions(List<String> options, String partial) {
+        return options.stream()
+                .filter(option -> option.toLowerCase().startsWith(partial.toLowerCase()))
+                .collect(Collectors.toList());
+    }
+    
+    private List<String> getCoordinateSuggestions(CommandSender sender, String coordinate, String partial) {
+        List<String> suggestions = new ArrayList<>();
+        
+        // If sender is a player, suggest their current coordinates
+        if (sender instanceof Player) {
+            Player player = (Player) sender;
+            Location loc = player.getLocation();
+            
+            String value;
+            switch (coordinate.toLowerCase()) {
+                case "x":
+                    value = String.valueOf(loc.getBlockX());
+                    break;
+                case "y":
+                    value = String.valueOf(loc.getBlockY());
+                    break;
+                case "z":
+                    value = String.valueOf(loc.getBlockZ());
+                    break;
+                default:
+                    value = "0";
+            }
+            
+            suggestions.add(value);
+            
+            // Add some common variations
+            if (coordinate.equalsIgnoreCase("y")) {
+                suggestions.add("64");  // Sea level
+                suggestions.add("100"); // Common building height
+                suggestions.add("200"); // High altitude
+            }
+        }
+        
+        // Add placeholder if no player location available
+        suggestions.add("<" + coordinate + ">");
+        
+        return filterCompletions(suggestions, partial);
     }
 
 } 

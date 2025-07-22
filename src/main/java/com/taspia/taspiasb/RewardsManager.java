@@ -4,9 +4,11 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,27 +22,75 @@ public class RewardsManager {
     }
 
     private void loadRewards() {
-        FileConfiguration config = plugin.getConfig();
-        ConfigurationSection levelsSection = config.getConfigurationSection("levels");
+        File configFile = new File(plugin.getDataFolder(), "config.yml");
+        
+        // Check if server config exists
+        if (!configFile.exists()) {
+            plugin.getLogger().info("No server config file found for rewards, using defaults only for initial creation");
+            return;
+        }
+        
+        // Load ONLY the server config file (not merged with default)
+        FileConfiguration serverConfig = YamlConfiguration.loadConfiguration(configFile);
+        plugin.getLogger().info("Loading rewards from server config file: " + configFile.getAbsolutePath());
+        
+        ConfigurationSection levelsSection = serverConfig.getConfigurationSection("levels");
         if (levelsSection != null) {
             for (String levelKey : levelsSection.getKeys(false)) {
                 try {
                     int level = Integer.parseInt(levelKey);
                     ConfigurationSection rewardsSection = levelsSection.getConfigurationSection(levelKey);
+                    
+                    if (rewardsSection == null) {
+                        plugin.getLogger().warning("Level '" + levelKey + "' is not a valid configuration section");
+                        continue;
+                    }
+                    
                     Map<String, Reward> rewards = new HashMap<>();
                     for (String rewardKey : rewardsSection.getKeys(false)) {
-                        String name = rewardsSection.getString(rewardKey + ".name");
-                        Material material = Material.valueOf(rewardsSection.getString(rewardKey + ".material").toUpperCase());
-                        String command = rewardsSection.getString(rewardKey + ".command");
-                        rewards.put(rewardKey, new Reward(level, rewardKey, name, material, command));
+                        // Skip non-reward sections like island-block-unlocks
+                        if (rewardKey.equals("island-block-unlocks")) {
+                            continue;
+                        }
+                        
+                        // Check if this is a valid reward section with required fields
+                        if (!rewardsSection.isConfigurationSection(rewardKey)) {
+                            continue; // Skip if it's not a configuration section
+                        }
+                        
+                        ConfigurationSection rewardSection = rewardsSection.getConfigurationSection(rewardKey);
+                        if (rewardSection == null) {
+                            continue; // Skip if we can't get the section
+                        }
+                        
+                        String name = rewardSection.getString("name");
+                        String materialString = rewardSection.getString("material");
+                        String command = rewardSection.getString("command");
+                        
+                        // Validate that all required fields are present
+                        if (name == null || materialString == null || command == null) {
+                            plugin.getLogger().warning("Invalid reward configuration in level " + level + 
+                                ", reward '" + rewardKey + "': missing required fields (name, material, or command)");
+                            continue;
+                        }
+                        
+                        try {
+                            Material material = Material.valueOf(materialString.toUpperCase());
+                            rewards.put(rewardKey, new Reward(level, rewardKey, name, material, command));
+                        } catch (IllegalArgumentException e) {
+                            plugin.getLogger().warning("Invalid material '" + materialString + "' in level " + level + 
+                                ", reward '" + rewardKey + "'");
+                        }
                     }
                     rewardsByLevel.put(level, rewards);
-                } catch (IllegalArgumentException e) {
-                    plugin.getLogger().warning("Invalid configuration in 'levels' section: " + levelKey);
+                } catch (NumberFormatException e) {
+                    plugin.getLogger().warning("Invalid level number in 'levels' section: '" + levelKey + "' - must be a number");
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Error processing level '" + levelKey + "': " + e.getMessage());
                 }
             }
         } else {
-            plugin.getLogger().warning("No 'levels' section found in config.yml");
+            plugin.getLogger().warning("No 'levels' section found in server config.yml");
         }
     }
 
@@ -66,7 +116,9 @@ public class RewardsManager {
     }
 
     public void reloadRewards() {
-        loadRewards(); // Assuming loadRewards is your method to load rewards from the config
+        rewardsByLevel.clear(); // Clear existing rewards before reloading
+        loadRewards(); // Load rewards from server config only
+        plugin.getLogger().info("Reloaded rewards from server config");
     }
 }
 

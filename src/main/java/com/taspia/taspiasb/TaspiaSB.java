@@ -10,6 +10,7 @@ public class TaspiaSB extends JavaPlugin {
     private CustomBossBarManager customBossBarManager;
     private PersonalBeaconManager personalBeaconManager;
     private PersonalLightningManager personalLightningManager;
+    private IslandLevelManager islandLevelManager;
     private CommandHandler commandHandler;
 
     @Override
@@ -22,18 +23,23 @@ public class TaspiaSB extends JavaPlugin {
         this.customBossBarManager = new CustomBossBarManager();
         this.personalBeaconManager = new PersonalBeaconManager(this);
         this.personalLightningManager = new PersonalLightningManager(this);
+        this.islandLevelManager = new IslandLevelManager(this);
 
         // Initialize command handler
-        this.commandHandler = new CommandHandler(this, rewardsManager, playerDataManager, customBossBarManager, personalBeaconManager, personalLightningManager);
+        this.commandHandler = new CommandHandler(this, rewardsManager, playerDataManager, customBossBarManager, personalBeaconManager, personalLightningManager, islandLevelManager);
 
         // Register event listeners
         getServer().getPluginManager().registerEvents(new RewardsGUI(this, rewardsManager, playerDataManager), this);
         getServer().getPluginManager().registerEvents(customBossBarManager, this);
         getServer().getPluginManager().registerEvents(personalBeaconManager, this);
+        getServer().getPluginManager().registerEvents(islandLevelManager, this);
 
-        // Register command executors
+        // Register command executors and tab completers
         getCommand("collect").setExecutor(commandHandler);
+        getCommand("collect").setTabCompleter(commandHandler);
+        
         getCommand("taspiasb").setExecutor(commandHandler);
+        getCommand("taspiasb").setTabCompleter(commandHandler);
 
         // Check for required dependencies
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
@@ -50,6 +56,21 @@ public class TaspiaSB extends JavaPlugin {
             getLogger().info("Hooked into ProtocolLib for personal beacons and lightning.");
         } else {
             getLogger().warning("Could not find ProtocolLib! Personal beacon and lightning features will be disabled.");
+        }
+
+        // Check for island level management dependencies
+        if (Bukkit.getPluginManager().getPlugin("SuperiorSkyblock2") != null) {
+            getLogger().info("Hooked into SuperiorSkyblock2 for island management.");
+        } else {
+            getLogger().warning("Could not find SuperiorSkyblock2! Island level features may not work properly.");
+        }
+
+        if (Bukkit.getPluginManager().getPlugin("AlonsoLevels") != null) {
+            getLogger().info("Hooked into AlonsoLevels API for level management.");
+        } else {
+            getLogger().severe("AlonsoLevels plugin not found! Island level caching system requires AlonsoLevels.");
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
         }
     }
 
@@ -86,5 +107,9 @@ public class TaspiaSB extends JavaPlugin {
 
     public PersonalLightningManager getPersonalLightningManager() {
         return personalLightningManager;
+    }
+
+    public IslandLevelManager getIslandLevelManager() {
+        return islandLevelManager;
     }
 }
