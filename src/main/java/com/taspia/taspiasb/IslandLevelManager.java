@@ -174,10 +174,10 @@ public class IslandLevelManager implements Listener {
                 event.setCancelled(true);
                 
                 String message = isMember ? 
-                    "§cTo place this block, an island member needs to reach skyblock level " + requiredLevel + "!" :
-                    "§cTo place this block, a member of this island needs to reach skyblock level " + requiredLevel + "!";
+                    "§cTo place this block an island member needs to reach skyblock level §6" + requiredLevel + "§c!" :
+                    "§cTo place this block a member of this island needs to reach skyblock level §6" + requiredLevel + "§c!";
                     
-                player.sendMessage(message + "§c Highest level on island: §6" + islandHighestLevel + "§c.");
+                player.sendMessage(message + "§c Current highest level on island: §a" + islandHighestLevel + "§c.");
                 
                 plugin.getLogger().info("Blocked " + player.getName() + " (" + playerRole + ") from placing " + 
                                        blockType.name() + " (insufficient island level: " + islandHighestLevel + 
